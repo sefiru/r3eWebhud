@@ -10,7 +10,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <time.h>
-//#include <Windows.h>
 #include <windows.h>
 #include <tchar.h>
 #include <string.h>
@@ -22,72 +21,10 @@
 #define INTERVAL_MS_WEB_RELATIVE_FUEL 200
 #define INTERVAL_MS_WEB_PLRS_INFO 5000
 
-int gears = 0;
-int currGear = 0;
-int lastGear = 0;
-BOOLEAN isTruck = FALSE;
-BOOLEAN isAbs = FALSE;
-
-HANDLE port;
-
-char joyU[] = "u\n";
-int lenU = sizeof(joyU) / sizeof(char) - 1;
-LPCSTR joyUData = (LPCSTR)joyU;
-char joyD[] = "d\n";
-int lenD = sizeof(joyD) / sizeof(char) - 1;
-LPCSTR joyDData = (LPCSTR)joyD;
-char joyI[] = "i\n";
-int lenI = sizeof(joyI) / sizeof(char) - 1;
-LPCSTR joyIData = (LPCSTR)joyI;
-char joyR[] = "r\n";
-int lenR = sizeof(joyR) / sizeof(char) - 1;
-LPCSTR joyRData = (LPCSTR)joyR;
-char joyO[] = "o\n";
-int lenO = sizeof(joyO) / sizeof(char) - 1;
-LPCSTR joyOData = (LPCSTR)joyO;
-char joyT[] = "t\n";
-int lenT = sizeof(joyT) / sizeof(char) - 1;
-LPCSTR joyTData = (LPCSTR)joyT;
-char joyF[] = "f\n";
-int lenF = sizeof(joyF) / sizeof(char) - 1;
-LPCSTR joyFData = (LPCSTR)joyF;
-char absOn[] = "a\n";
-int lenAbsOn = sizeof(absOn) / sizeof(char) - 1;
-LPCSTR absOnData = (LPCSTR)absOn;
-char absOff[] = "s\n";
-int lenAbsOff = sizeof(absOff) / sizeof(char) - 1;
-LPCSTR absOffData = (LPCSTR)absOff;
 
 HANDLE map_handle = INVALID_HANDLE_VALUE;
 r3e_shared* map_buffer = NULL;
 
-LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
-    if (nCode >= 0) {
-        if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
-            KBDLLHOOKSTRUCT* keyInfo = (KBDLLHOOKSTRUCT*)lParam;
-            switch (keyInfo->vkCode) {
-            case 135: WriteFile(port, &joyUData[0], lenU, NULL, 0); if (currGear < gears) currGear++; break;
-            case 134: WriteFile(port, &joyDData[0], lenD, NULL, 0); if (currGear > 0) currGear--; break;
-            case 133: WriteFile(port, &joyIData[0], lenI, NULL, 0); if (isTruck && currGear != -1) { lastGear = currGear;currGear = 0; } break;
-            case 132: WriteFile(port, &joyRData[0], lenR, NULL, 0); currGear = -1; break;
-            default:
-                break;
-            }
-            //printf("Key pressed: %d\n", keyInfo->vkCode);
-        }
-        if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP) {
-            KBDLLHOOKSTRUCT* keyInfo = (KBDLLHOOKSTRUCT*)lParam;
-            switch (keyInfo->vkCode) {
-            case 133: WriteFile(port, &joyOData[0], lenO, NULL, 0); if (isTruck && currGear != -1) currGear = lastGear; break;
-            default:
-                break;
-            }
-            //printf("Key pressed: %d\n", keyInfo->vkCode);
-        }
-    }
-
-    return CallNextHookEx(NULL, nCode, wParam, lParam);
-}
 HANDLE map_open()
 {
     return OpenFileMapping(
@@ -191,10 +128,10 @@ int main()
     lapsAndFuelData.currentBestLap = 9999;
     lapsAndFuelData.previousLap = 9999;
     playerRatingInfoDb.size++;
-    playerRatingInfoDb.player[0].id = 1085106;
+    /*playerRatingInfoDb.player[0].id = 1085106;
     playerRatingInfoDb.player[0].name = "s. anti";
     playerRatingInfoDb.player[0].rating = 1862;
-    playerRatingInfoDb.player[0].reputation = 88;
+    playerRatingInfoDb.player[0].reputation = 88;*/
     //BlobResult res = readWindowsSettings();
     //unsigned char bytes_array[] = { 0x12, 0x34, 0x56, 0x78 };
     //unsigned char bytes_array1[10] = { 'h', 'e', 'l', 'l', 'o','h', 'e', 'l', 'l', 'o' };
@@ -205,22 +142,7 @@ int main()
     }
     chrs[0] = 130;
     startServers();
-    port = CreateFile(L"COM4", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-    if (port == INVALID_HANDLE_VALUE) {
-        MessageBox(NULL, L"Ќевозможно открыть последовательный порт", L"Error", MB_OK);
-        ExitProcess(1);
-    }
-
-    HHOOK hook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
-
-    if (hook == NULL) {
-        printf("Failed to install hook\n");
-        return 1;
-    }
-
-    MSG msg;
-    //BOOL bRet;
-
+    
     clock_t clk_start = 0, clk_last = 0;
     clock_t clk_delta_ms = 0, clk_elapsed = 0;
 
@@ -273,23 +195,6 @@ int main()
             mapped_r3e = TRUE;
             clk_start = clock();
         }
-        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-        /*if (isClientConnected) {
-            clk_delta_ms_web_delta_radar = (clock() - clk_last_web_delta_radar) / CLOCKS_PER_MS;
-            if (clk_delta_ms_web_delta_radar > INTERVAL_MS_WEB_DELTA_RADAR) {
-                int random_num = rand() % 26;
-
-                // Map the random number to a lowercase letter (ASCII values 'a' to 'z')
-                char random_char = 'a' + random_num;
-                char chrs[] = { 130, 3, 0x4d, 0x44, random_char, '\0' };
-                sendMessage(chrs);
-                clk_last_web_delta_radar = clock();
-            }
-            
-        }*/
         if (mapped_r3e)
         {
 
@@ -1189,109 +1094,15 @@ int main()
                     clk_last_web_ralative_fuel = clock();
                 }
             }
-            
-                //printf("%f, %f, %f, %f\n", map_buffer->tire_load[0], map_buffer->tire_load[1], map_buffer->tire_load[2], map_buffer->tire_load[3]);
-            //printf("%f\n", map_buffer->player.engine_torque);
-            if (map_buffer->num_gears == 16 && gears == 4) {
-                goto next;
-            }
-            if ((map_buffer->num_gears != -1 && gears != map_buffer->num_gears) ) {
-                if (isTruck) {
-                    isTruck = FALSE;
-                    char kek[2] = "f\n";
-                    WriteFile(port, &kek[0], 2, NULL, 0);
-                }
-                gears = map_buffer->num_gears;
-                if (gears == 16) {
-                    isTruck = TRUE;
-                    gears = 4;
-                    char kek[2] = "t\n";
-                    WriteFile(port, &kek[0], 2, NULL, 0);
-                }
-                //printf("k");
-                //char grs[] = "0\n";
-                char grs[2];
-
-                //grs[0] = (char)map_buffer->num_gears;
-                sprintf_s(grs, sizeof(grs), "%d", gears);
-
-                int lenGrs = sizeof(grs) / sizeof(char) - 1;
-                LPCSTR grsData = (LPCSTR)grs;
-
-                WriteFile(port, &grsData[0], lenGrs, NULL, 0);
-            }
-            next:
-
-            /*if (map_buffer->gear > -2 && map_buffer->gear != currGear)
-            {
-                wprintf_s(L"Gear: %i\n", map_buffer->gear);
-            }*/
-
-            /*if (map_buffer->engine_rps > -1.f)
-            {
-                wprintf_s(L"RPM: %.3f\n", map_buffer->engine_rps * RPS_TO_RPM);
-                wprintf_s(L"Speed: %.3f km/h\n", map_buffer->car_speed * MPS_TO_KPH);
-            }*/
-            if (map_buffer->aid_settings.abs == 0) {
-                //if (!isAbs && (map_buffer->car_speed > 10 && (map_buffer->tire_rps[0] < 0.1 || map_buffer->tire_rps[1] < 0.1))) {
-                //if (!isAbs && (map_buffer->car_speed > 10 && (map_buffer->tire_speed[0] < 0.1 || map_buffer->tire_speed[1] < 0.1))) {
-                if (!isAbs && (/*map_buffer->car_speed > 10 && */ (map_buffer->tire_grip[0] < 0.1 || map_buffer->tire_grip[1] < 0.1))) {
-                    isAbs = TRUE;
-                    WriteFile(port, &absOnData[0], lenAbsOn, NULL, 0);
-                }
-                else
-                    //if (isAbs && (map_buffer->tire_rps[0] > 0.1 || map_buffer->tire_rps[1] > 0.1)) {
-                    //if (isAbs && (map_buffer->tire_speed[0] > 0.1 || map_buffer->tire_speed[1] > 0.1)) {
-                    if (isAbs && (map_buffer->tire_grip[0] > 0.1 || map_buffer->tire_grip[1] > 0.1)) {
-                        isAbs = FALSE;
-                        WriteFile(port, &absOffData[0], lenAbsOff, NULL, 0);
-                    }
-            }
-            else if (map_buffer->aid_settings.abs == 5 && !isAbs && map_buffer->tire_grip[0] < 0.25 && map_buffer->tire_grip[1] < 0.25) {
-                //wprintf_s(L"AAAAAAAAAAAAA\n");
-                isAbs = TRUE;
-                WriteFile(port, &absOnData[0], lenAbsOn, NULL, 0);
-            }
-
-            if (map_buffer->aid_settings.abs == 1 && isAbs) {
-                isAbs = FALSE;
-                //wprintf_s(L"----------------------------------------\n");
-                WriteFile(port, &absOffData[0], lenAbsOff, NULL, 0);
-            }
-
-            if (map_buffer->all_drivers_data_1[0].driver_info.class_id == 4813 || map_buffer->all_drivers_data_1[0].driver_info.class_id == 1708) {
-                if (currGear != map_buffer->gear) {
-                    if ((map_buffer->in_pitlane == 1 && map_buffer->engine_rps == 0) || map_buffer->control_type == 1) {
-                        for (;;) {
-                            if (currGear == map_buffer->gear) {
-                                break;
-                            }
-
-                            if (currGear < map_buffer->gear)
-                                WriteFile(port, &joyUData[0], lenU, NULL, 0); if (currGear < 0) currGear++;
-                            else
-                                WriteFile(port, &joyDData[0], lenD, NULL, 0); if (currGear > 0) currGear--;
-                        }
-                        Sleep(200);
-                    }
-                }
-            }
-            //wprintf_s(L"control: %d, %d, %d\n", map_buffer->gear, currGear, map_buffer->engine_rps);
-            //wprintf_s(L"control: %d, %d, %d, %d\n", map_buffer->control_type, map_buffer->gear, map_buffer->in_pitlane, map_buffer->all_drivers_data_1[0].driver_info.class_id);
-            //wprintf_s(L"control: %d, %d, %d, %d\n", map_buffer->control_type, map_buffer->gear, map_buffer->in_pitlane, map_buffer->all_drivers_data_1[0].driver_info.class_id);
-            //wprintf_s(L"grip: %.3f\n", *map_buffer->tire_grip);
-            //wprintf_s(L"grip: %d\n", map_buffer->aid_settings.abs);
-            //wprintf_s(L"\n");
+            next:;
         }
         nextiteration:;
     }
 
     map_close();
 
-    UnhookWindowsHookEx(hook);
     wprintf_s(L"All done!");
     system("PAUSE");
-    UnhookWindowsHookEx(hook);
 
     return 0;
 }
