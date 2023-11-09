@@ -3,7 +3,6 @@
 #include "utils.h"
 #include "web.h"
 #include "db.h"
-//#include "sqlite3.h"
 
 #define _USE_MATH_DEFINES
 
@@ -17,10 +16,10 @@
 //#define ALIVE_SEC 60000
 #define INTERVAL_MS 1
 #define INTERVAL_MS_WEB_DELTA_RADAR 10
-#define INTERVAL_MS_WEB_WHEELS_INPUTS 200
+#define INTERVAL_MS_WEB_INPUTS 33
+#define INTERVAL_MS_WEB_WHEELS 200
 #define INTERVAL_MS_WEB_RELATIVE_FUEL 200
 #define INTERVAL_MS_WEB_PLRS_INFO 5000
-
 
 HANDLE map_handle = INVALID_HANDLE_VALUE;
 r3e_shared* map_buffer = NULL;
@@ -121,14 +120,14 @@ r3e_driver_data* all_drivers_data_copy2[R3E_NUM_DRIVERS_MAX];
 int main()
 {
     //Beep(440, 5000);
-    init(); 
+    init();
     lapsAndFuelData.allBestLap = 9999;
     lapsAndFuelData.allBestFuel = 9999;
     lapsAndFuelData.leaderBestLap = 9999;
     lapsAndFuelData.currentBestLap = 9999;
     lapsAndFuelData.previousLap = 9999;
-    playerRatingInfoDb.size++;
-    /*playerRatingInfoDb.player[0].id = 1085106;
+    /*playerRatingInfoDb.size++;
+    playerRatingInfoDb.player[0].id = 1085106;
     playerRatingInfoDb.player[0].name = "s. anti";
     playerRatingInfoDb.player[0].rating = 1862;
     playerRatingInfoDb.player[0].reputation = 88;*/
@@ -142,19 +141,21 @@ int main()
     }
     chrs[0] = 130;
     startServers();
-    
+
     clock_t clk_start = 0, clk_last = 0;
     clock_t clk_delta_ms = 0, clk_elapsed = 0;
 
     clock_t clk_start_web_delta_radar = 0, clk_last_web_delta_radar = 0;
     clock_t clk_delta_ms_web_delta_radar = 0;
-    clock_t clk_start_web_wheels_inputs = 0, clk_last_web_wheels_inputs = 0;
-    clock_t clk_delta_ms_web_wheels_inputs = 0;
+    clock_t clk_start_web_inputs = 0, clk_last_web_inputs = 0;
+    clock_t clk_delta_ms_web_inputs = 0;
+    clock_t clk_start_web_wheels = 0, clk_last_web_wheels = 0;
+    clock_t clk_delta_ms_web_wheels = 0;
     clock_t clk_start_web_ralative_fuel = 0, clk_last_web_ralative_fuel = 0;
     clock_t clk_delta_ms_web_ralative_fuel = 0;
     clock_t clk_start_web_plrs_info = 0, clk_last_web_plrs_info = 0;
     clock_t clk_delta_ms_web_plrs_info = 0;
-    
+
     int err_code = 0;
     BOOL mapped_r3e = FALSE;
 
@@ -195,6 +196,19 @@ int main()
             mapped_r3e = TRUE;
             clk_start = clock();
         }
+        /*if (isClientConnected) {
+            clk_delta_ms_web_delta_radar = (clock() - clk_last_web_delta_radar) / CLOCKS_PER_MS;
+            if (clk_delta_ms_web_delta_radar > INTERVAL_MS_WEB_DELTA_RADAR) {
+                int random_num = rand() % 26;
+
+                // Map the random number to a lowercase letter (ASCII values 'a' to 'z')
+                char random_char = 'a' + random_num;
+                char chrs[] = { 130, 3, 0x4d, 0x44, random_char, '\0' };
+                sendMessage(chrs);
+                clk_last_web_delta_radar = clock();
+            }
+
+        }*/
         if (mapped_r3e)
         {
 
@@ -264,72 +278,92 @@ int main()
 
                     sendMessage(chrs, chrs[1] + 2);
                 }
-            //if (isClientConnected && map_buffer->session_type == 100) {
-                //if (map_buffer->completed_laps > 1) {
-                //printf("%f\n", map_buffer->lap_time_previous_self);
-                    if (lastSavedLap != map_buffer->completed_laps) {
-                        chrs[1] = 1;
-                        chrs[2] = 6;
+                //if (isClientConnected && map_buffer->session_type == 100) {
+                    //if (map_buffer->completed_laps > 1) {
+                    //printf("%f\n", map_buffer->lap_time_previous_self);
+                if (lastSavedLap != map_buffer->completed_laps) {
+                    chrs[1] = 1;
+                    chrs[2] = 6;
 
-                        lapsAndFuelData.previousLap = map_buffer->lap_time_previous_self;
-                        //map_buffer->time_delta_best_self
-                        memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.previousLap, sizeof(float));
-                        chrs[1] += 4;
+                    lapsAndFuelData.previousLap = map_buffer->lap_time_previous_self;
+                    //map_buffer->time_delta_best_self
+                    memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.previousLap, sizeof(float));
+                    chrs[1] += 4;
 
-                        /*if (lapsAndFuelData.currentBestLap > lapsAndFuelData.previousLap) {
-                            lapsAndFuelData.currentBestLap = lapsAndFuelData.previousLap;
-                            chrs[2 + chrs[1]] = 1;
-                            chrs[1] += 1;
-                        }
-                        else {
-                            chrs[2 + chrs[1]] = 0;
-                            chrs[1] += 1;
-                        }*/
-
-                        /*memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.currentBestFuel, sizeof(float));
-                        chrs[1] += 4;*/
-                        
-                        /*if (lapsAndFuelData.currentBestFuel > map_buffer->fuel_per_lap) {
-                            //lapsAndFuelData.currentBestFuel = map_buffer->fuel_per_lap;
-                            memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.currentBestFuel, sizeof(float));
-                            chrs[1] += 4;
-                        }*/
-                        if ((lapsAndFuelData.currentBestLap > lapsAndFuelData.previousLap || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap || lapsAndFuelData.leaderBestLap > map_buffer->lap_time_best_leader_class) ) {
-                        //if ((lapsAndFuelData.currentBestLap > map_buffer->lap_time_best_self || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap || lapsAndFuelData.leaderBestLap > map_buffer->lap_time_best_leader_class)) {
-                            if (map_buffer->completed_laps > 0 && lapsAndFuelData.currentBestLap > lapsAndFuelData.previousLap) {
-                            //if (map_buffer->lap_time_best_self != -1 && map_buffer->completed_laps > 0 && lapsAndFuelData.currentBestLap > map_buffer->lap_time_best_self) {
-                                lapsAndFuelData.currentBestLap = lapsAndFuelData.previousLap;
-                            }
-                            lapsAndFuelData.leaderBestLap = map_buffer->lap_time_best_leader_class;
-                            memcpy(&chrs[2 + chrs[1]], &map_buffer->lap_time_best_self, sizeof(float));
-                            //memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.currentBestLap, sizeof(float));
-                            chrs[1] += 4;
-                            memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.leaderBestLap, sizeof(float));
-                            chrs[1] += 4;
-                            //if (map_buffer->completed_laps > 1 && (lapsAndFuelData.allBestLap > lapsAndFuelData.currentBestLap || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap)) {
-                            if (((map_buffer->session_type != 1 && map_buffer->completed_laps > 1) || (map_buffer->session_type == 1 && map_buffer->completed_laps > 0)) && ((map_buffer->lap_time_best_self != -1 && lapsAndFuelData.allBestLap > map_buffer->lap_time_best_self) || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap)) {
-                                if (map_buffer->lap_time_best_self != -1 && lapsAndFuelData.allBestLap > map_buffer->lap_time_best_self) {
-                                    lapsAndFuelData.allBestLap = map_buffer->lap_time_best_self;
-                                }
-                                memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.allBestLap, sizeof(float));
-                                chrs[1] += 4;
-                                if (lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap) {
-                                    lapsAndFuelData.allBestFuel = map_buffer->fuel_per_lap;
-                                    memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.allBestFuel, sizeof(float));
-                                    chrs[1] += 4;
-                                }
-                                
-                                writeBestLapFuel(&lapsAndFuelData, map_buffer->track_id, map_buffer->vehicle_info.model_id);
-                                
-                            }
-                        }
-                        sendMessage(chrs, chrs[1] + 2);
-                        lastSavedLap = map_buffer->completed_laps;
+                    /*if (lapsAndFuelData.currentBestLap > lapsAndFuelData.previousLap) {
+                        lapsAndFuelData.currentBestLap = lapsAndFuelData.previousLap;
+                        chrs[2 + chrs[1]] = 1;
+                        chrs[1] += 1;
                     }
+                    else {
+                        chrs[2 + chrs[1]] = 0;
+                        chrs[1] += 1;
+                    }*/
+
+                    /*memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.currentBestFuel, sizeof(float));
+                    chrs[1] += 4;*/
+
+                    /*if (lapsAndFuelData.currentBestFuel > map_buffer->fuel_per_lap) {
+                        //lapsAndFuelData.currentBestFuel = map_buffer->fuel_per_lap;
+                        memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.currentBestFuel, sizeof(float));
+                        chrs[1] += 4;
+                    }*/
+                    if ((lapsAndFuelData.currentBestLap > lapsAndFuelData.previousLap || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap || lapsAndFuelData.leaderBestLap > map_buffer->lap_time_best_leader_class)) {
+                        //if ((lapsAndFuelData.currentBestLap > map_buffer->lap_time_best_self || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap || lapsAndFuelData.leaderBestLap > map_buffer->lap_time_best_leader_class)) {
+                        if (map_buffer->completed_laps > 0 && lapsAndFuelData.currentBestLap > lapsAndFuelData.previousLap) {
+                            //if (map_buffer->lap_time_best_self != -1 && map_buffer->completed_laps > 0 && lapsAndFuelData.currentBestLap > map_buffer->lap_time_best_self) {
+                            lapsAndFuelData.currentBestLap = lapsAndFuelData.previousLap;
+                        }
+                        lapsAndFuelData.leaderBestLap = map_buffer->lap_time_best_leader_class;
+                        memcpy(&chrs[2 + chrs[1]], &map_buffer->lap_time_best_self, sizeof(float));
+                        //memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.currentBestLap, sizeof(float));
+                        chrs[1] += 4;
+                        memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.leaderBestLap, sizeof(float));
+                        chrs[1] += 4;
+                        //if (map_buffer->completed_laps > 1 && (lapsAndFuelData.allBestLap > lapsAndFuelData.currentBestLap || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap)) {
+                        if (((map_buffer->session_type != 1 && map_buffer->completed_laps > 1) || (map_buffer->session_type == 1 && map_buffer->completed_laps > 0)) && ((map_buffer->lap_time_best_self != -1 && lapsAndFuelData.allBestLap > map_buffer->lap_time_best_self) || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap)) {
+                            if (map_buffer->lap_time_best_self != -1 && lapsAndFuelData.allBestLap > map_buffer->lap_time_best_self) {
+                                lapsAndFuelData.allBestLap = map_buffer->lap_time_best_self;
+                            }
+                            memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.allBestLap, sizeof(float));
+                            chrs[1] += 4;
+                            if (lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap) {
+                                lapsAndFuelData.allBestFuel = map_buffer->fuel_per_lap;
+                                memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.allBestFuel, sizeof(float));
+                                chrs[1] += 4;
+                            }
+
+                            writeBestLapFuel(&lapsAndFuelData, map_buffer->track_id, map_buffer->vehicle_info.model_id);
+
+                        }
+                    }
+                    sendMessage(chrs, chrs[1] + 2);
+                    lastSavedLap = map_buffer->completed_laps;
+                }
                 //}
+
+                clk_delta_ms_web_inputs = (clock() - clk_last_web_inputs) / CLOCKS_PER_MS;
+                if (clk_delta_ms_web_inputs > INTERVAL_MS_WEB_INPUTS) {
+
+
+                    chrs[1] = 1;
+                    chrs[2] = 10;
+
+                    memcpy(&chrs[2 + chrs[1]], &map_buffer->throttle, sizeof(r3e_float32));
+                    chrs[1] += 4;
+                    memcpy(&chrs[2 + chrs[1]], &map_buffer->brake, sizeof(r3e_float32));
+                    chrs[1] += 4;
+                    memcpy(&chrs[2 + chrs[1]], &map_buffer->throttle_raw, sizeof(r3e_float32));
+                    chrs[1] += 4;
+                    memcpy(&chrs[2 + chrs[1]], &map_buffer->brake_raw, sizeof(r3e_float32));
+                    chrs[1] += 4;
+
+                    sendMessage(chrs, chrs[1] + 2);
+                    clk_last_web_inputs = clock();
+                }
                 clk_delta_ms_web_plrs_info = (clock() - clk_last_web_plrs_info) / CLOCKS_PER_MS;
                 if (clk_delta_ms_web_plrs_info > INTERVAL_MS_WEB_PLRS_INFO) {
-                    if (currentState != map_buffer->session_type ) {
+                    if (currentState != map_buffer->session_type) {
                         unsigned long playersIdSumTemp = 0;
                         if (map_buffer->session_type == -1 || currentState == -1) {
                             /*for (int i = 0; i < sizeof(playerRatingInfoCurrent) / sizeof(playerRatingInfoCurrent[0]); i++) {
@@ -338,7 +372,7 @@ int main()
                             }*/
                             memset(playerRatingInfoSended.ids, 0, sizeof(playerRatingInfoSended.ids));
                             playerRatingInfoSended.size = 0;
-                            
+
                             if (map_buffer->session_type == -1)
                                 goto skip;
                             else if (currentState == -1) {
@@ -354,7 +388,7 @@ int main()
                             playersIdSumTemp += map_buffer->all_drivers_data_1[i].driver_info.user_id;
                         }
                         if (playersIdSum != playersIdSumTemp) {
-                            dopls:
+                        dopls:
                             for (size_t i = 0; i < map_buffer->num_cars; i++) {
                                 if (map_buffer->all_drivers_data_1[i].driver_info.user_id == -1)
                                     continue;
@@ -398,7 +432,7 @@ int main()
                                         str[0] = 130;
                                         str[1] = length + 2;
                                         str[2] = 5;
-                                        sendMessage(str, length+4);
+                                        sendMessage(str, length + 4);
                                         free(str);
                                     }
                                     else {
@@ -444,7 +478,7 @@ int main()
                         }
                         currentState = map_buffer->session_type;
                     }
-                    skip:
+                skip:
                     clk_last_web_plrs_info = clock();
                 }
 
@@ -455,19 +489,19 @@ int main()
                     // Map the random number to a lowercase letter (ASCII values 'a' to 'z')
                     //char random_char = 'a' + random_num;
                     //char chrs[] = { 130, 3, 0x4d, 0x44, random_char, '\0' };
-                    
-                    
+
+
                     chrs[1] = 5;
                     chrs[2] = 1;
                     memcpy(&chrs[3], &map_buffer->time_delta_best_self, sizeof(r3e_float32));
                     //memcpy(&chrs[3], &map_buffer->lap_time_delta_leader_class, sizeof(r3e_float32));
-                    
+
 
                     /*printf("(%f,%f,%f)", map_buffer->all_drivers_data_1[1].position.x, map_buffer->all_drivers_data_1[1].position.z, map_buffer->all_drivers_data_1[1].orientation.y);
                     printf("(%f,%f,%f)\n", map_buffer->all_drivers_data_1[0].position.x, map_buffer->all_drivers_data_1[0].position.z, map_buffer->all_drivers_data_1[0].orientation.y);*/
-                   /* printf("(%f,%f)", map_buffer->all_drivers_data_1[1].driver_info.car_width, map_buffer->all_drivers_data_1[1].driver_info.car_length);
-                    printf("(%f,%f)\n", map_buffer->all_drivers_data_1[0].driver_info.car_width, map_buffer->all_drivers_data_1[0].driver_info.car_length);*/
-                    //printf("%d ",map_buffer->num_cars);
+                    /* printf("(%f,%f)", map_buffer->all_drivers_data_1[1].driver_info.car_width, map_buffer->all_drivers_data_1[1].driver_info.car_length);
+                     printf("(%f,%f)\n", map_buffer->all_drivers_data_1[0].driver_info.car_width, map_buffer->all_drivers_data_1[0].driver_info.car_length);*/
+                     //printf("%d ",map_buffer->num_cars);
                     memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].position.x, sizeof(r3e_float32));
                     chrs[1] += 4;
                     memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].position.z, sizeof(r3e_float32));
@@ -504,7 +538,7 @@ int main()
 
                         float distanceCenter = sqrt(dx * dx + dy * dy);
                         radarPlayers[i].key = i;
-                        radarPlayers[i].value = map_buffer->vehicle_info.slot_id == map_buffer->all_drivers_data_1[i].driver_info.slot_id?300000:distanceCenter;
+                        radarPlayers[i].value = map_buffer->vehicle_info.slot_id == map_buffer->all_drivers_data_1[i].driver_info.slot_id ? 300000 : distanceCenter;
                         radarPlayers[i].data = map_buffer->all_drivers_data_1[i];
                         /*__try {
                             radarPlayers[i].data = map_buffer->all_drivers_data_1[i];
@@ -517,30 +551,30 @@ int main()
                         goto nextiteration;
                     qsort(radarPlayers, map_buffer->num_cars, sizeof(struct KeyValue), compareByValue);
                     float temp = 0;
-                    for (size_t i = 0; i < (map_buffer->num_cars>5?5: map_buffer->num_cars); i++) {
+                    for (size_t i = 0; i < (map_buffer->num_cars > 5 ? 5 : map_buffer->num_cars); i++) {
                         //printf("%f\n", radarPlayers[i].value);
                         //if (i == map_buffer->position - 1) {
                         /*if (map_buffer->all_drivers_data_1[i].driver_info.slot_id == map_buffer->vehicle_info.slot_id) {
                             printf("NNNNNNNNNNNNNNNNNNNNNNNNOOOOOOOOOOOOOOOOOO");
                             continue;
                         }*/
-                       /* if (temp > radarPlayers[i].value) {
-                            printf("pizda\n");
-                            for (size_t i = 0; i < (map_buffer->num_cars > 5 ? 5 : map_buffer->num_cars); i++) {
-                                printf("%f\n", radarPlayers[i].value);
-                            }
-                        }
-                        //printf("%f,%f,%f,%f,%f\n", radarPlayers[i].data.position.x, radarPlayers[i].data.position.z, radarPlayers[i].data.orientation.y,
-                        //    radarPlayers[i].data.driver_info.car_width, radarPlayers[i].data.driver_info.car_length);
-                        printf("%f ", radarPlayers[i].value);
-                        for (size_t ii = 0; ii < map_buffer->num_cars; ii++)
-                        {
-                            if (map_buffer->all_drivers_data_1[ii].driver_info.slot_id == radarPlayers[i].data.driver_info.slot_id) {
-                                printf("%d %s\n", radarPlayers[i].data.driver_info.slot_id, radarPlayers[i].data.driver_info.name);
+                        /* if (temp > radarPlayers[i].value) {
+                             printf("pizda\n");
+                             for (size_t i = 0; i < (map_buffer->num_cars > 5 ? 5 : map_buffer->num_cars); i++) {
+                                 printf("%f\n", radarPlayers[i].value);
+                             }
+                         }
+                         //printf("%f,%f,%f,%f,%f\n", radarPlayers[i].data.position.x, radarPlayers[i].data.position.z, radarPlayers[i].data.orientation.y,
+                         //    radarPlayers[i].data.driver_info.car_width, radarPlayers[i].data.driver_info.car_length);
+                         printf("%f ", radarPlayers[i].value);
+                         for (size_t ii = 0; ii < map_buffer->num_cars; ii++)
+                         {
+                             if (map_buffer->all_drivers_data_1[ii].driver_info.slot_id == radarPlayers[i].data.driver_info.slot_id) {
+                                 printf("%d %s\n", radarPlayers[i].data.driver_info.slot_id, radarPlayers[i].data.driver_info.name);
 
-                            }
-                        }
-                        temp = radarPlayers[i].value;*/
+                             }
+                         }
+                         temp = radarPlayers[i].value;*/
                         memcpy(&chrs[2 + chrs[1]], &radarPlayers[i].data.position.x, sizeof(r3e_float32));
                         chrs[1] += 4;
                         memcpy(&chrs[2 + chrs[1]], &radarPlayers[i].data.position.z, sizeof(r3e_float32));
@@ -645,20 +679,20 @@ int main()
                     }*/
                     /*map_buffer->all_drivers_data_1[0].position.x;
                     map_buffer->all_drivers_data_1[0].position.x;*/
-                    
+
                     sendMessage(chrs, chrs[1] + 2);
-                    
-                    
-                    
-                    
-                    
-                    
-                    
+
+
+
+
+
+
+
                     //printf("k");
                     clk_last_web_delta_radar = clock();
                 }
-                clk_delta_ms_web_wheels_inputs = (clock() - clk_last_web_wheels_inputs) / CLOCKS_PER_MS;
-                if (clk_delta_ms_web_wheels_inputs > INTERVAL_MS_WEB_WHEELS_INPUTS) {
+                clk_delta_ms_web_wheels = (clock() - clk_last_web_wheels) / CLOCKS_PER_MS;
+                if (clk_delta_ms_web_wheels > INTERVAL_MS_WEB_WHEELS) {
                     /*
                     typedef struct
                     {
@@ -676,7 +710,7 @@ int main()
                         r3e_float32 hot_temp;
                     } r3e_brake_temp;
                     */
-                    
+
                     // Current temperature of three points across the tread of the tire (-1.0 = N/A)
                     // Optimum temperature
                     // Cold temperature
@@ -817,17 +851,17 @@ int main()
                     memcpy(&chrs[2 + chrs[1]], &map_buffer->tire_temp[3].hot_temp, sizeof(r3e_float32));
                     chrs[1] += 4;
 
-                    memcpy(&chrs[2 + chrs[1]], &map_buffer->throttle, sizeof(r3e_float32));
+                    /*memcpy(&chrs[2 + chrs[1]], &map_buffer->throttle, sizeof(r3e_float32));
                     chrs[1] += 4;
                     memcpy(&chrs[2 + chrs[1]], &map_buffer->brake, sizeof(r3e_float32));
                     chrs[1] += 4;
                     memcpy(&chrs[2 + chrs[1]], &map_buffer->throttle_raw, sizeof(r3e_float32));
                     chrs[1] += 4;
                     memcpy(&chrs[2 + chrs[1]], &map_buffer->brake_raw, sizeof(r3e_float32));
-                    chrs[1] += 4;
-                    
+                    chrs[1] += 4;*/
+
                     sendMessage(chrs, chrs[1] + 2);
-                    clk_last_web_wheels_inputs = clock();
+                    clk_last_web_wheels = clock();
                 }
 
 
@@ -852,7 +886,7 @@ int main()
                         }
                     }
                     //printf("%f %f %f %f\n", ceil(map_buffer->race_session_minutes[0]*60 / fastestLap), fastestLap, fuelPerLap, ceil(ceil(map_buffer->race_session_minutes[0]*60 / fastestLap)* fuelPerLap) + 1);
-                    float fuelForRace = ceil(ceil(map_buffer->race_session_minutes[0] * 60 / fastestLap)* fuelPerLap) + 2;
+                    float fuelForRace = ceil(ceil(map_buffer->race_session_minutes[0] * 60 / fastestLap) * fuelPerLap) + 2;
                     memcpy(&chrs[2 + chrs[1]], &fuelForRace, sizeof(r3e_float32));
                     chrs[1] += 4;
                     //memcpy(&chrs[2 + chrs[1]], &map_buffer->fuel_capacity, sizeof(r3e_float32));
@@ -950,14 +984,15 @@ int main()
                                     continue;
                                 }
                                 float timeza = ((map_buffer->lap_distance / map_buffer->layout_length * 100) / 100 * lapsAndFuelData.allBestLap) - (all_drivers_data_copy[currentCar]->lap_distance / map_buffer->layout_length * 100) / 100 * lapsAndFuelData.allBestLap;
-                            
+
                                 //printf("%f %f %d\n", map_buffer->lap_time_current_self, all_drivers_data_copy[currentCar]->lap_time_current_self, currentCar);
                                 //printf("%f\n", map_buffer->lap_time_current_self, (map_buffer->lap_distance / map_buffer->layout_length * 100) / 100 * lapsAndFuelData.allBestLap);
                                 //printf("%f, %f\n", (map_buffer->lap_distance / map_buffer->layout_length * 100) / 100 * lapsAndFuelData.allBestLap, (all_drivers_data_copy[currentCar]->lap_distance / map_buffer->layout_length * 100) / 100 * lapsAndFuelData.allBestLap);
                                 //memcpy(&chrs[2 + chrs[1]], &all_drivers_data_copy[currentCar]->time_delta_behind, sizeof(r3e_float32));
                                 memcpy(&chrs[2 + chrs[1]], &timeza, sizeof(r3e_float32));
                                 chrs[1] += 4;
-                            } else {
+                            }
+                            else {
                                 memcpy(&chrs[2 + chrs[1]], &num, sizeof(r3e_int32));
                                 chrs[1] += 4;
                                 memcpy(&chrs[2 + chrs[1]], &chr, sizeof(unsigned char));
@@ -966,7 +1001,7 @@ int main()
                                 chrs[1] += 4;
                             }
                             //memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[currentCar].lap_distance, sizeof(r3e_float32));
-                            
+
                         }//62
                         if (notFilled != 0) {
                             for (size_t i = notFilled; i < 6; i++) {
@@ -994,7 +1029,7 @@ int main()
                         to = 6;
                         for (size_t i = 1; i < to; i++) {
                             if (i < map_buffer->num_cars) {
-                                unsigned char currentCar = (int)(playerInSortedArray + i) > (int)(map_buffer->num_cars - 1) ? i - (map_buffer->num_cars - 1 - playerInSortedArray) - 1  : playerInSortedArray + i;
+                                unsigned char currentCar = (int)(playerInSortedArray + i) > (int)(map_buffer->num_cars - 1) ? i - (map_buffer->num_cars - 1 - playerInSortedArray) - 1 : playerInSortedArray + i;
                                 if (all_drivers_data_copy[currentCar]->finish_status > 1) {
                                     to++;
                                     skiped++;
@@ -1036,7 +1071,8 @@ int main()
                                 //memcpy(&chrs[2 + chrs[1]], &all_drivers_data_copy[currentCar]->time_delta_front, sizeof(r3e_float32));
                                 memcpy(&chrs[2 + chrs[1]], &timeza, sizeof(r3e_float32));
                                 chrs[1] += 4;
-                            } else {
+                            }
+                            else {
                                 memcpy(&chrs[2 + chrs[1]], &num, sizeof(r3e_int32));
                                 chrs[1] += 4;
                                 memcpy(&chrs[2 + chrs[1]], &chr, sizeof(unsigned char));
@@ -1094,9 +1130,29 @@ int main()
                     clk_last_web_ralative_fuel = clock();
                 }
             }
-            next:;
+
+            //printf("%f, %f, %f, %f\n", map_buffer->tire_load[0], map_buffer->tire_load[1], map_buffer->tire_load[2], map_buffer->tire_load[3]);
+        //printf("%f\n", map_buffer->player.engine_torque);
+
+
+        /*if (map_buffer->gear > -2 && map_buffer->gear != currGear)
+        {
+            wprintf_s(L"Gear: %i\n", map_buffer->gear);
+        }*/
+
+        /*if (map_buffer->engine_rps > -1.f)
+        {
+            wprintf_s(L"RPM: %.3f\n", map_buffer->engine_rps * RPS_TO_RPM);
+            wprintf_s(L"Speed: %.3f km/h\n", map_buffer->car_speed * MPS_TO_KPH);
+        }*/
+        //wprintf_s(L"control: %d, %d, %d\n", map_buffer->gear, currGear, map_buffer->engine_rps);
+        //wprintf_s(L"control: %d, %d, %d, %d\n", map_buffer->control_type, map_buffer->gear, map_buffer->in_pitlane, map_buffer->all_drivers_data_1[0].driver_info.class_id);
+        //wprintf_s(L"control: %d, %d, %d, %d\n", map_buffer->control_type, map_buffer->gear, map_buffer->in_pitlane, map_buffer->all_drivers_data_1[0].driver_info.class_id);
+        //wprintf_s(L"grip: %.3f\n", *map_buffer->tire_grip);
+        //wprintf_s(L"grip: %d\n", map_buffer->aid_settings.abs);
+        //wprintf_s(L"\n");
         }
-        nextiteration:;
+    nextiteration:;
     }
 
     map_close();

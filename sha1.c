@@ -14,7 +14,7 @@ A million repetitions of "a"
 
 /* #define LITTLE_ENDIAN * This should be #define'd already, if true. */
 /* #define SHA1HANDSOFF * Copies data before messing with it. */
-
+#pragma optimize("", off)
 #define SHA1HANDSOFF
 
 #include <stdio.h>
@@ -312,3 +312,4 @@ char* sha1(const char string1[], const char string2[]) {
     return &hexresult;
 }
 
+#pragma optimize("", on)
