@@ -202,7 +202,7 @@ int main()
             if (map_buffer->session_type != -1) {
                 if (currentState == -2) {
                     //load from db
-                    readBestLapFuel(&lapsAndFuelData, map_buffer->track_id, map_buffer->vehicle_info.model_id);
+                    readBestLapFuel(&lapsAndFuelData, map_buffer->layout_id, map_buffer->vehicle_info.model_id);
                     currentState = -1;
                 }
                 if (currentState != -1 && currentState != map_buffer->session_type) {
@@ -1066,7 +1066,7 @@ void doStartLightsAndBestLapSaves() {
                     lapsAndFuelData.allBestFuel = map_buffer->fuel_per_lap;
                 }
 
-                writeBestLapFuel(&lapsAndFuelData, map_buffer->track_id, map_buffer->vehicle_info.model_id);
+                writeBestLapFuel(&lapsAndFuelData, map_buffer->layout_id, map_buffer->vehicle_info.model_id);
 
             }
         }
