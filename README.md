@@ -3,6 +3,7 @@
 - No-delay stating lights.
 - ~100fps delta and radar.
 - Radar is car size accurate.
+- Input graph.
 ### How to Use
 - Download the .exe file.
 - Add “-webdev -webHudUrl=http://localhost:8081/” to the run parameters in Steam (just like OtterHUD).
