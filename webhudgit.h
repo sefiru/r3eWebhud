@@ -15,6 +15,7 @@ typedef struct {
 	int all_time_best_table;
 	int relative_table;
 	int wheels;
+	int absgrip_graph;
 	int input_graph;
 	int input_percents;
 	int standings;

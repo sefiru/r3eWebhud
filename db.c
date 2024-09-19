@@ -22,6 +22,17 @@ void init() {
     else {
         fprintf(stdout, "Opened database successfully\n");
     }
+
+    /*char* sql14 = "DELETE FROM `BestLaps` WHERE `track`=1678;";
+    rc = sqlite3_exec(db, sql14, 0, 0, &errMsg);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "SQL error: %s\n", errMsg);
+        sqlite3_free(errMsg);
+    }
+    else {
+        fprintf(stdout, "Table created successfully\n");
+    }*/
     /*
     char* sql2 = "DELETE FROM BestLaps;";
     rc = sqlite3_exec(db, sql2, 0, 0, &errMsg);
@@ -49,7 +60,7 @@ void init() {
         fprintf(stdout, "Table created successfully\n");
     }
 
-    char* sql1 = "CREATE TABLE BestLaps( track INT, car INT, lap FLOAT, fuel FLOAT, PRIMARY KEY(track, car) );";
+    char* sql1 = "CREATE TABLE BestLaps( track INT, layout INT, car INT, lap FLOAT, fuel FLOAT, PRIMARY KEY(track, layout, car) );";
     rc = sqlite3_exec(db, sql1, 0, 0, &errMsg);
 
     if (rc != SQLITE_OK) {
@@ -65,7 +76,7 @@ void init() {
     
     //const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (0x0);";
     //const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES ();";
-    /*int sequence[] = {1, 0, 100, 0, 156, 1, 56, 1, 0, 0, 100, 0, 156, 1, 56, 1, 33, 4, 236, 2, 156, 1, 56, 1, 136, 0, 254, 2, 241, 1, 6, 1, 201, 5, 12, 1, 156, 1, 56, 1, 52, 3, 224, 0, 75, 1, 71, 0, 186, 1, 131, 0, 108, 1, 68, 0, 145, 4, 226, 0, 22, 1, 61, 0, 207, 1, 213, 0, 251, 0, 60, 0, 231, 5, 174, 3, 56, 0, 112, 0, 0, 204
+    /*int sequence[] = {122, 3, 238, 3, 0, 0, 71, 0, 171, 2, 143, 3, 0, 0, 79, 0, 201, 4, 8, 2, 0, 0, 66, 0, 197, 3, 168, 2, 1, 0, 0, 0, 250, 4, 118, 0, 1, 0, 0, 0, 167, 5, 113, 0, 1, 0, 0, 0, 249, 4, 187, 0, 1, 0, 0, 0, 248, 5, 221, 3, 1, 0, 0, 0, 203, 4, 201, 3, 0, 0, 34, 0, 53, 1, 136, 0, 0, 0, 96, 0, 72, 2, 63, 2, 1, 0, 0, 0, 68, 0, 64, 1, 0, 0, 47, 0, 0, 0
     };
     int size = sizeof(sequence) / sizeof(sequence[0]);
 
@@ -76,16 +87,23 @@ void init() {
 
     char* insertSQL = (char*)malloc(1000 * sizeof(char));
     sprintf_s(insertSQL, 1000, "INSERT INTO WindowsSettings (data) VALUES (0x%s);", hexString);*/
+    /*const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (122, 3, 238, 3, 0, 0, 71, 0, 171, 2, 143, 3, 0, 0, 79, 0, 201, 4, 8, 2, 0, 0, 66, 0, 197, 3, 168, 2, 1, 0, 0, 0, 250, 4, 118, 0, 1, 0, 0, 0, 167, 5, 113, 0, 1, 0, 0, 0, 249, 4, 187, 0, 1, 0, 0, 0, 248, 5, 221, 3, 1, 0, 0, 0, 203, 4, 201, 3, 0, 0, 34, 0, 53, 1, 136, 0, 0, 0, 96, 0, 72, 2, 63, 2, 1, 0, 0, 0, 68, 0, 64, 1, 0, 0, 47, 0, 0, 0);";
+    */
     
+   /* const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (0x7A, 0x03, 0xEE, 0x03, 0x00, 0x00, 0x47, 0x00, 0xAB, 0x02, 0x8F, 0x03, 0x00, 0x00, 0x4F, 0x00, 0xC9, 0x04, 0x08, 0x02, 0x00, 0x00, 0x42, 0x00, 0xC5, 0x03, 0xA8, 0x02, 0x01, 0x00, 0x00, 0x00, 0xFA, 0x04, 0x76, 0x00, 0x01, 0x00, 0x00, 0x00, 0xA7, 0x05, 0x71, 0x00, 0x01, 0x00, 0x00, 0x00, 0xF9, 0x04, 0xBB, 0x00, 0x01, 0x00, 0x00, 0x00, 0xF8, 0x05, 0xDD, 0x03, 0x01, 0x00, 0x00, 0x00, 0xCB, 0x04, 0xC9, 0x03, 0x00, 0x00, 0x22, 0x00, 0x35, 0x01, 0x88, 0x00, 0x00, 0x00, 0x60, 0x00, 0x48, 0x02, 0x3F, 0x02, 0x01, 0x00, 0x00, 0x00, 0x44, 0x00, 0x40, 0x01, 0x00, 0x00, 0x2F, 0x00, 0x00, 0x00);";
+    */
+
+    /*const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (x'7A03EE0300004700AB028F0300004F00C904080200004200C503A802010000FA047600010000A7057100010000F904BB00010000F805DD03010000CB04C903000022003501880000600048023F020100004400400100002F000000');";*/
+
     const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (0x0);";
     rc = sqlite3_exec(db, insertSQL, 0, 0, &errMsg);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "SQL error: %s\n", errMsg);
         sqlite3_free(errMsg);
     }
-    /*else {
+    else {
         fprintf(stdout, "Record inserted successfully\n");
-    }*/
+    }
 
 
     // Close the database
@@ -160,7 +178,7 @@ BlobResult readWindowsSettings() {
         printf("Failed to prepare statement: %s\n", sqlite3_errmsg(db));
         return;
     }
-    BlobResult result;
+    BlobResult result = { 0, (unsigned char*)malloc(200 * sizeof(unsigned char)) };
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         //int colCount = sqlite3_column_count(stmt);
         /*for (int i = 0; i < colCount; i++) {
@@ -187,12 +205,18 @@ BlobResult readWindowsSettings() {
         //memcpy(dest, src, size);
         /*unsigned char dest[200];
         dest = *src;*/
+        //for (int i = 0; i < size; i++) {
+        //    printf("%d: %d\n", i, src[i]);  // Print as integer
+        //}
         unsigned char dest[200];
         memcpy(dest, src, size);
-
         result.data = &dest;
+        //memcpy(result.data, src, size);
         //const unsigned char* new_var = result.data;
         result.size = size;
+        //for (int i = 0; i < size; i++) {
+        //    printf("%d: %d\n", i, result.data[i]);  // Print as integer
+        //}
         //const unsigned char* test = result.data;
         //printf("lololo\n");
     }
@@ -238,11 +262,12 @@ BlobResult readWindowsSettings() {
 }
 
 
-void readBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t car) {
+void readBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t layout, int32_t car) {
     sqlite3* db;
     sqlite3_stmt* stmt;
     //int track = 1;  // replace with your track number
     //int car = 2;  // replace with your car number
+    //printf("read: %d, %d, %d\n", track, layout, car);
 
     // Open the database
     if (sqlite3_open("data.db", &db) != SQLITE_OK) {
@@ -251,7 +276,7 @@ void readBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t car) {
     }
 
     // Prepare the SQL statement
-    char sql[] = "SELECT * FROM BestLaps WHERE track = ? AND car = ?";
+    char sql[] = "SELECT * FROM BestLaps WHERE track = ? AND layout = ? AND car = ?";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK) {
         //printf("Failed to prepare statement readBestLapFuel\n");
         printf("Failed to prepare statement: %s readBestLapFuel\n", sqlite3_errmsg(db));
@@ -260,25 +285,48 @@ void readBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t car) {
 
     // Bind the parameters
     sqlite3_bind_int(stmt, 1, track);
-    sqlite3_bind_int(stmt, 2, car);
-
+    sqlite3_bind_int(stmt, 2, layout);
+    sqlite3_bind_int(stmt, 3, car);
+    lapsAndFuel->allBestLap = 9999;
+    lapsAndFuel->allBestFuel = 9999;
     // Step through the result set
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        lapsAndFuel->allBestLap = sqlite3_column_double(stmt, 2);
-        lapsAndFuel->allBestFuel = sqlite3_column_double(stmt, 3);
-        /*printf("track: %d, car: %d, lap: %f, fuel: %f\n",
+        lapsAndFuel->allBestLap = sqlite3_column_double(stmt, 3);
+        lapsAndFuel->allBestFuel = sqlite3_column_double(stmt, 4);
+        /*printf("track: %d, layout: %d, car: %d, lap: %f, fuel: %f\n",
             sqlite3_column_int(stmt, 0),
             sqlite3_column_int(stmt, 1),
-            sqlite3_column_double(stmt, 2),
-            sqlite3_column_double(stmt, 3));*/
+            sqlite3_column_int(stmt, 2),
+            sqlite3_column_double(stmt, 3),
+            sqlite3_column_double(stmt, 4));*/
     }
 
     // Finalize the statement and close the database
     sqlite3_finalize(stmt);
+
+    /*char* sql2 = "CREATE TABLE BestLaps( track INT, layout INT, car INT, lap FLOAT, fuel FLOAT, PRIMARY KEY(track, layout, car) );";
+    char* sql4 = "DROP TABLE BestLaps;";
+
+    char* err_msg = 0;
+
+
+    if (sqlite3_exec(db, sql4, 0, 0, &err_msg) != SQLITE_OK) {
+        printf("SQL error: %s\n", err_msg);
+        sqlite3_free(err_msg);
+        sqlite3_close(db);
+        return 1;
+    }
+    if (sqlite3_exec(db, sql2, 0, 0, &err_msg) != SQLITE_OK) {
+        printf("SQL error: %s\n", err_msg);
+        sqlite3_free(err_msg);
+        sqlite3_close(db);
+        return 1;
+    }*/
     sqlite3_close(db);
 }
 
-void writeBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t car) {
+void writeBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t layout, int32_t car) {
+    //printf("write: %d, %d, %d\n", track, layout, car);
     sqlite3* db;
     sqlite3_stmt* stmt;
     //int track = ;  // replace with your track number
@@ -293,18 +341,18 @@ void writeBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t car) {
     }
 
     // Prepare the SQL statement
-    char sql[] = "INSERT OR REPLACE INTO BestLaps (track, car, lap, fuel) VALUES (?, ?, ?, ?)";
+    char sql[] = "INSERT OR REPLACE INTO BestLaps (track, layout, car, lap, fuel) VALUES (?, ?, ?, ?, ?)";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK) {
         //printf("Failed to prepare statement writeBestLapFuel\n");
         printf("Failed to prepare statement: %s writeBestLapFuel\n", sqlite3_errmsg(db));
         return 1;
     }
-
     // Bind the parameters
     sqlite3_bind_int(stmt, 1, track);
-    sqlite3_bind_int(stmt, 2, car);
-    sqlite3_bind_double(stmt, 3, lap);
-    sqlite3_bind_double(stmt, 4, fuel);
+    sqlite3_bind_int(stmt, 2, layout);
+    sqlite3_bind_int(stmt, 3, car);
+    sqlite3_bind_double(stmt, 4, lap);
+    sqlite3_bind_double(stmt, 5, fuel);
 
     // Execute the statement
     if (sqlite3_step(stmt) != SQLITE_DONE) {
@@ -318,7 +366,6 @@ void writeBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t car) {
     sqlite3_finalize(stmt);
     sqlite3_close(db);
 }
-#pragma optimize("", on)
 /*
 -----------------------INSERT
 
@@ -422,3 +469,4 @@ void writeBlob() {
 }
 
 */
+//#pragma optimize("", on)
