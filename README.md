@@ -17,17 +17,17 @@
 ***The program also requires ports 8081 and 8082 to be free for the HTTP and WebSocket servers.*** 
 
 ## ABS graph
-- At first you will need create a data for each car that you want to show abs data:
--- Go to **Game Settings -> Gameplay -> Assists -> Braking Assists**, and turn off the ABS.
--- Create a game (single on daytona oval is a good choice) with car that you want.
--- In the car setup set the break bias to 50%.
--- Now in WebHud console type "record" (or just "r"), you should see "record started" in the console.
--- Start driving the car with brake slightly pressed. Heat the brakes until 1500 degrees (or less if you are sure the temperature wont go that high in real race).
--- When warming up ends, type in the console "stop" (or just "s").
--- You will see information about name of a saved datafile.
--- If you see list of temperatures and wheels, its about temperature didn't record, can happend if temperature rises too quickly or just higher values that you skipped by yourself, to make data complete, simply return to the garage, start recording again, and repeat the process.
--- Well done! Now turn on the ABS in Game Settings and enjoy the ABS graph.
-- You can also share your recorded data by posting it on the [Forums topic](https://forum.kw-studios.com/index.php?threads/another-custom-webhud.19310/), or by making Git pull request to the repo.
+##### At first you will need create a data for each car that you want to show abs data:
+- Go to **Game Settings -> Gameplay -> Assists -> Braking Assists**, and turn off the ABS.
+- Create a game (single on daytona oval is a good choice) with car that you want.
+- In the car setup set the break bias to 50%.
+- Now in WebHud console type "record" (or just "r"), you should see "record started" in the console.
+- Start driving the car with brake slightly pressed. Heat the brakes until 1500 degrees (or less if you are sure the temperature wont go that high in real race).
+- When warming up ends, type in the console "stop" (or just "s").
+- You will see information about name of a saved datafile.
+- If you see list of temperatures and wheels, its about temperature didn't record, can happend if temperature rises too quickly or just higher values that you skipped by yourself, to make data complete, simply return to the garage, start recording again, and repeat the process.
+- Well done! Now turn on the ABS in Game Settings and enjoy the ABS graph.
+#### You can also share your recorded data by posting it on the [Forums topic](https://forum.kw-studios.com/index.php?threads/another-custom-webhud.19310/), or by making Git pull request to the repo.
 
 After running the .exe file, a .db file will be created in the same folder. This is a SQLite database file that stores the positions of elements on the screen as well as the best lap/fuel data. You can easily inspect it with any SQL editor.
 
