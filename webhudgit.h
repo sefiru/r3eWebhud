@@ -3,10 +3,12 @@
 #include <time.h>
 #include "r3e.h";
 
-#ifndef WEBHUD_H
-#define WEBHUD_H
+#ifndef WEBHUDGIT_H
+#define WEBHUDGIT_H
 
 typedef struct {
+	char http_port[10];
+	char wesocket_port[10];
 	int last_lap;
 	int best_lap;
 	int best_lap_leader;
@@ -76,4 +78,4 @@ void doPlayersInfo();
 void initSettings();
 void doThings();
 
-#endif // WEBHUD_H
+#endif // WEBHUDGIT_H

@@ -31,6 +31,7 @@ byte writeWheelDataFlag = 0;
 char carsId[30000][100];
 char classesId[30000][100];
 float currentBb = 0;
+float setupPressure = 1;
 
 void carsList() {
     long length;
@@ -174,12 +175,12 @@ void setBb() {
     float f = 2 * (1 - currentBb);
     float r = 2 * currentBb;
     //brake[0][optt];
-    
+
     for (int j = 0; j < 1500; j++) {
-        brakeA[0][j] = brake[0][j] * f;
-        brakeA[1][j] = brake[1][j] * f;
-        brakeA[2][j] = brake[2][j] * r;
-        brakeA[3][j] = brake[3][j] * r;
+        brakeA[0][j] = brake[0][j] * f * setupPressure;
+        brakeA[1][j] = brake[1][j] * f * setupPressure;
+        brakeA[2][j] = brake[2][j] * r * setupPressure;
+        brakeA[3][j] = brake[3][j] * r * setupPressure;
     }
     /*printf("%f ", brakeA[0][optt] + brakeA[1][optt] + brakeA[2][optt] + brakeA[3][optt]);
     printf("%f ", brakeA[0][optt]);
@@ -201,25 +202,27 @@ DWORD WINAPI writeData(LPVOID lpParam) {
     while (writeWheelDataFlag) {
         if (map_buffer) {
             //printf("%d\n", counti++);
-            p = map_buffer->brake_pressure[0] / map_buffer->brake_raw;
-            tmp = map_buffer->brake_temp[0].current_temp;
-            if (brake[0][tmp] == 0 && tmp > 0 && tmp < 1500 && !isnan(p) && !isinf(p))
-                brake[0][tmp] = p;
+            if (map_buffer->brake_raw > 0.1f) {
+                p = map_buffer->brake_pressure[0] / map_buffer->brake_raw;
+                tmp = map_buffer->brake_temp[0].current_temp;
+                if (brake[0][tmp] == 0 && tmp > 0 && tmp < 1500 && !isnan(p) && !isinf(p))
+                    brake[0][tmp] = p;
 
-            p = map_buffer->brake_pressure[1] / map_buffer->brake_raw;
-            tmp = map_buffer->brake_temp[1].current_temp;
-            if (brake[1][tmp] == 0 && tmp > 0 && tmp < 1500 && !isnan(p) && !isinf(p))
-                brake[1][tmp] = p;
+                p = map_buffer->brake_pressure[1] / map_buffer->brake_raw;
+                tmp = map_buffer->brake_temp[1].current_temp;
+                if (brake[1][tmp] == 0 && tmp > 0 && tmp < 1500 && !isnan(p) && !isinf(p))
+                    brake[1][tmp] = p;
 
-            p = map_buffer->brake_pressure[2] / map_buffer->brake_raw;
-            tmp = map_buffer->brake_temp[2].current_temp;
-            if (brake[2][tmp] == 0 && tmp > 0 && tmp < 1500 && !isnan(p) && !isinf(p))
-                brake[2][tmp] = p;
+                p = map_buffer->brake_pressure[2] / map_buffer->brake_raw;
+                tmp = map_buffer->brake_temp[2].current_temp;
+                if (brake[2][tmp] == 0 && tmp > 0 && tmp < 1500 && !isnan(p) && !isinf(p))
+                    brake[2][tmp] = p;
 
-            p = map_buffer->brake_pressure[3] / map_buffer->brake_raw;
-            tmp = map_buffer->brake_temp[3].current_temp;
-            if (brake[3][tmp] == 0 && tmp > 0 && tmp < 1500 && !isnan(p) && !isinf(p))
-                brake[3][tmp] = p;
+                p = map_buffer->brake_pressure[3] / map_buffer->brake_raw;
+                tmp = map_buffer->brake_temp[3].current_temp;
+                if (brake[3][tmp] == 0 && tmp > 0 && tmp < 1500 && !isnan(p) && !isinf(p))
+                    brake[3][tmp] = p;
+            }
         }
         Sleep(1);
     }
@@ -363,7 +366,21 @@ DWORD WINAPI read_input(LPVOID lpParam) {
             writeWheelDataFlag = 0;
         }
         else {
-            printf("Unknown command: %s\n", input);
+            char* endptr;
+            int number = strtol(input, &endptr, 10);
+
+            if (*endptr == '\0') {
+                if (number < 80 || number > 100) {
+                    printf("Incorrect brake pressure\n");
+                    continue;
+                }
+                printf("Brake pressure set to %d%%\n", number);
+                setupPressure = (float)number / 100;
+                setBb();
+            }
+            else {
+                printf("Unknown command: %s\n", input);
+            }
         }
 
         
@@ -585,8 +602,16 @@ int main()
             //printf("%d\n", map_buffer->layout_id);
             /*printf("%d, %d\n", map_buffer->session_type, currentState);*/
             /*printf("%d\n", map_buffer->vehicle_info.model_id);*/
+            /*if (currentState != map_buffer->session_type) {
+                if (lastpr1 != currentState || lastpr2 != map_buffer->session_type) {
+                    printf("\n%d, %d, %d\n", currentState, map_buffer->session_type, map_buffer->vehicle_info.model_id);
+                    lastpr1 = currentState;
+                    lastpr2 = map_buffer->session_type;
+                }
+            }*/
             if (map_buffer->session_type != -1) {
                 if (currentState == -2) {
+                    //printf("\n%d\n", map_buffer->vehicle_info.model_id);
                     currentBb = map_buffer->brake_bias;
                     memset(brake, 0, sizeof(brake));
                     char folderNameData[] = "brake_pressure_folder\\data\\carclass"; // Folder name
@@ -671,7 +696,7 @@ int main()
                     }*/
                     skipbb:
                     //load from db
-                    readBestLapFuel(&lapsAndFuelData, map_buffer->track_id, map_buffer->layout_id, map_buffer->vehicle_info.model_id);
+                    readBestLapFuel(&lapsAndFuelData, map_buffer->layout_id, map_buffer->vehicle_info.model_id);
                     //wprintf_s(L"bestloaded\n");
                     currentState = -1;
                 }
@@ -698,6 +723,11 @@ int main()
             //if (isClientConnected && map_buffer->session_type != -1) {
             if (isClientConnected) {
                 doThings();
+            }
+            else {
+                if (currentState != -2) {
+                    currentState = map_buffer->session_type;
+                }
             }
         }
     }
@@ -737,6 +767,8 @@ void initSettings() {
         fscanf_s(file, "standings = %d\n", &settings.standings, sizeof(settings.standings));
         fscanf_s(file, "starting lights = %d\n", &settings.startingLights, sizeof(settings.startingLights));
         fscanf_s(file, "dev = %d\n", &settings.dev, sizeof(settings.dev));*/
+        fscanf_s(file, "http port = %9s\n", &settings.http_port, (unsigned)_countof(settings.http_port));
+        fscanf_s(file, "websocket port = %9s\n", &settings.wesocket_port, (unsigned)_countof(settings.wesocket_port));
         fscanf_s(file, "last lap = %d\n", &settings.last_lap);
         fscanf_s(file, "best lap = %d\n", &settings.best_lap);
         fscanf_s(file, "best lap leader = %d\n", &settings.best_lap_leader);
@@ -753,10 +785,12 @@ void initSettings() {
         fscanf_s(file, "dev = %d\n", &settings.dev);
         fclose(file);
     } else {
-        settings = (Settings){ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0};
+        settings = (Settings){ "8081", "8082", 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0 };
         FILE* file;
         errno_t err = fopen_s(&file, "settings.txt", "w");
         if (err == 0) {
+            fprintf(file, "http port = %s\n", settings.http_port);
+            fprintf(file, "websocket port = %s\n", settings.wesocket_port);
             fprintf(file, "last lap = %d\n", settings.last_lap);
             fprintf(file, "best lap = %d\n", settings.best_lap);
             fprintf(file, "best lap leader = %d\n", settings.best_lap_leader);
@@ -1646,7 +1680,7 @@ void doStartLightsAndBestLapSaves() {
                 /*/////////////////////*memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.allBestFuel, sizeof(float));
                 chrs[1] += 4;*/////////////////////
 
-                writeBestLapFuel(&lapsAndFuelData, map_buffer->track_id, map_buffer->layout_id, map_buffer->vehicle_info.model_id);
+                writeBestLapFuel(&lapsAndFuelData, map_buffer->layout_id, map_buffer->vehicle_info.model_id);
 
             }
         }

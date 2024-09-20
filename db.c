@@ -20,6 +20,102 @@ void init() {
         return 1;
     }
     else {
+        sqlite3_stmt* stmt;
+        char sql[256];
+        int exists = 0;
+
+        // Query the SQLite schema to check for the existence of the column
+        snprintf(sql, sizeof(sql),
+            "PRAGMA table_info(%s);", "BestLaps");
+
+        if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                const char* col_name = (const char*)sqlite3_column_text(stmt, 1);
+                if (strcmp(col_name, "track") == 0 && strcmp(col_name, "layout") == 0) {
+                    exists = 1;  // Column exists
+                    break;
+                } else 
+                if (strcmp(col_name, "track") == 0) {
+                    exists = 2;  // Column exists
+                    break;
+                }
+            }
+        }
+        sqlite3_finalize(stmt);
+
+        if (exists == 1) {
+            char* sql_begin = "BEGIN TRANSACTION;";
+            rc = sqlite3_exec(db, sql_begin, 0, 0, &errMsg);
+            if (rc != SQLITE_OK) {
+                fprintf(stderr, "SQL error (begin transaction): %s\n", errMsg);
+                sqlite3_free(errMsg);
+                return 1;
+            }
+
+            // Create the new table without 'track' and with the new primary key
+            char* sql_create = "CREATE TABLE BestLaps_new ("
+                "layout INT, "
+                "car INT, "
+                "lap FLOAT, "
+                "fuel FLOAT, "
+                "PRIMARY KEY(layout, car));";
+            rc = sqlite3_exec(db, sql_create, 0, 0, &errMsg);
+            if (rc != SQLITE_OK) {
+                fprintf(stderr, "SQL error (creating new table): %s\n", errMsg);
+                sqlite3_free(errMsg);
+                return 1;
+            }
+
+            // Copy data from the old table to the new table (excluding 'track')
+            char* sql_copy = "INSERT INTO BestLaps_new(layout, car, lap, fuel) "
+                "SELECT layout, car, lap, fuel FROM BestLaps;";
+            rc = sqlite3_exec(db, sql_copy, 0, 0, &errMsg);
+            if (rc != SQLITE_OK) {
+                fprintf(stderr, "SQL error (copying data): %s\n", errMsg);
+                sqlite3_free(errMsg);
+                return 1;
+            }
+
+            // Drop the old table
+            char* sql_drop = "DROP TABLE BestLaps;";
+            rc = sqlite3_exec(db, sql_drop, 0, 0, &errMsg);
+            if (rc != SQLITE_OK) {
+                fprintf(stderr, "SQL error (dropping old table): %s\n", errMsg);
+                sqlite3_free(errMsg);
+                return 1;
+            }
+
+            // Rename the new table to the original table name
+            char* sql_rename = "ALTER TABLE BestLaps_new RENAME TO BestLaps;";
+            rc = sqlite3_exec(db, sql_rename, 0, 0, &errMsg);
+            if (rc != SQLITE_OK) {
+                fprintf(stderr, "SQL error (renaming new table): %s\n", errMsg);
+                sqlite3_free(errMsg);
+                return 1;
+            }
+
+            // Commit the transaction
+            char* sql_commit = "COMMIT;";
+            rc = sqlite3_exec(db, sql_commit, 0, 0, &errMsg);
+            if (rc != SQLITE_OK) {
+                fprintf(stderr, "SQL error (committing transaction): %s\n", errMsg);
+                sqlite3_free(errMsg);
+                return 1;
+            }
+
+            fprintf(stdout, "Table altered successfully\n");
+        }
+        if (exists == 2) {
+            char* sql_rename_column = "ALTER TABLE BestLaps RENAME COLUMN track TO layout;";
+            rc = sqlite3_exec(db, sql_rename_column, 0, 0, &errMsg);
+            if (rc != SQLITE_OK) {
+                fprintf(stderr, "SQL error (renaming column): %s\n", errMsg);
+                sqlite3_free(errMsg);
+            }
+            else {
+                fprintf(stdout, "Column renamed successfully\n");
+            }
+        }
         fprintf(stdout, "Opened database successfully\n");
     }
 
@@ -262,7 +358,7 @@ BlobResult readWindowsSettings() {
 }
 
 
-void readBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t layout, int32_t car) {
+void readBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t layout, int32_t car) {
     sqlite3* db;
     sqlite3_stmt* stmt;
     //int track = 1;  // replace with your track number
@@ -276,7 +372,7 @@ void readBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t layout, in
     }
 
     // Prepare the SQL statement
-    char sql[] = "SELECT * FROM BestLaps WHERE track = ? AND layout = ? AND car = ?";
+    char sql[] = "SELECT * FROM BestLaps WHERE layout = ? AND car = ?";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK) {
         //printf("Failed to prepare statement readBestLapFuel\n");
         printf("Failed to prepare statement: %s readBestLapFuel\n", sqlite3_errmsg(db));
@@ -284,15 +380,14 @@ void readBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t layout, in
     }
 
     // Bind the parameters
-    sqlite3_bind_int(stmt, 1, track);
-    sqlite3_bind_int(stmt, 2, layout);
-    sqlite3_bind_int(stmt, 3, car);
+    sqlite3_bind_int(stmt, 1, layout);
+    sqlite3_bind_int(stmt, 2, car);
     lapsAndFuel->allBestLap = 9999;
     lapsAndFuel->allBestFuel = 9999;
     // Step through the result set
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        lapsAndFuel->allBestLap = sqlite3_column_double(stmt, 3);
-        lapsAndFuel->allBestFuel = sqlite3_column_double(stmt, 4);
+        lapsAndFuel->allBestLap = sqlite3_column_double(stmt, 2);
+        lapsAndFuel->allBestFuel = sqlite3_column_double(stmt, 3);
         /*printf("track: %d, layout: %d, car: %d, lap: %f, fuel: %f\n",
             sqlite3_column_int(stmt, 0),
             sqlite3_column_int(stmt, 1),
@@ -325,7 +420,7 @@ void readBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t layout, in
     sqlite3_close(db);
 }
 
-void writeBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t layout, int32_t car) {
+void writeBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t layout, int32_t car) {
     //printf("write: %d, %d, %d\n", track, layout, car);
     sqlite3* db;
     sqlite3_stmt* stmt;
@@ -341,18 +436,17 @@ void writeBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t layout, i
     }
 
     // Prepare the SQL statement
-    char sql[] = "INSERT OR REPLACE INTO BestLaps (track, layout, car, lap, fuel) VALUES (?, ?, ?, ?, ?)";
+    char sql[] = "INSERT OR REPLACE INTO BestLaps (layout, car, lap, fuel) VALUES (?, ?, ?, ?)";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK) {
         //printf("Failed to prepare statement writeBestLapFuel\n");
         printf("Failed to prepare statement: %s writeBestLapFuel\n", sqlite3_errmsg(db));
         return 1;
     }
     // Bind the parameters
-    sqlite3_bind_int(stmt, 1, track);
-    sqlite3_bind_int(stmt, 2, layout);
-    sqlite3_bind_int(stmt, 3, car);
-    sqlite3_bind_double(stmt, 4, lap);
-    sqlite3_bind_double(stmt, 5, fuel);
+    sqlite3_bind_int(stmt, 1, layout);
+    sqlite3_bind_int(stmt, 2, car);
+    sqlite3_bind_double(stmt, 3, lap);
+    sqlite3_bind_double(stmt, 4, fuel);
 
     // Execute the statement
     if (sqlite3_step(stmt) != SQLITE_DONE) {

@@ -48,7 +48,7 @@ DWORD WINAPI thread_function(LPVOID lpParam) {
 
     // Bind the socket to an IP address and port
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8081);
+    serverAddr.sin_port = htons(atoi(settings.http_port));
     //serverAddr.sin_port = htons(80);
     serverAddr.sin_addr.s_addr = INADDR_ANY;
 
@@ -69,7 +69,7 @@ DWORD WINAPI thread_function(LPVOID lpParam) {
         return 1;
     }
 
-    printf("Server is listening on port 8081...\n");
+    printf("Server is listening on port %s...\n", settings.http_port);
 
     while (1) {
         // Accept a client connection request
@@ -224,7 +224,7 @@ DWORD WINAPI thread_function1(LPVOID lpParam) {
 
     // Bind the socket to an IP address and port
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8082);
+    serverAddr.sin_port = htons(atoi(settings.wesocket_port));
     //serverAddr.sin_port = htons(80);
     serverAddr.sin_addr.s_addr = INADDR_ANY;
 
@@ -245,7 +245,7 @@ DWORD WINAPI thread_function1(LPVOID lpParam) {
         return 1;
     }
 
-    printf("Server is listening on port 8082...\n");
+    printf("Server is listening on port %s...\n", settings.wesocket_port);
     while (1) {
         // Accept a client connection request
         clientSocket = accept(serverSocket, (SOCKADDR*)&clientAddr, &clientAddrLen);
@@ -296,8 +296,13 @@ DWORD WINAPI thread_function1(LPVOID lpParam) {
             chrs[0] = 130;
 
             chrs[2] = 13;
-            memcpy(chrs + 3, &settings, sizeof(Settings));
-            chrs[1] = sizeof(Settings) + 1;
+            
+            size_t remainingSize = sizeof(Settings) - (sizeof(settings.http_port) + sizeof(settings.wesocket_port));
+            memcpy(chrs + 3, &settings.last_lap, remainingSize);
+            chrs[1] = remainingSize + 1;
+
+            //memcpy(chrs + 3, &settings, sizeof(Settings));
+            //chrs[1] = sizeof(Settings) + 1;
             send(clientSocket, chrs, chrs[1] + 2, 0);
 
             chrs[2] = 9;
@@ -663,23 +668,38 @@ void buildHtml() {
     //printf("%s", html);
 }
 
+char* responzz;
+
 void buildResponz() {
     int totalLength = strlen(response) + strlen(html) + 1;
     if (!responz) {
         free(responz);
     }
+    if (!responzz) {
+        free(responzz);
+    }
     responz = malloc(totalLength * sizeof(char));
-    //printf("%s", responz);
-    //printf("%d", strlen(responz3));
+    responzz = malloc(totalLength * sizeof(char) + 10);
+
     if (responz == NULL) {
         printf("responz malloc failed");
     }
     else {
-        // Initialize the new string
         responz[0] = '\0';
 
-        // Concatenate the strings
         strcat_s(responz, totalLength, response);
         strcat_s(responz, totalLength, html);
+        
+        char* pos1 = strstr(responz, "8082");
+
+        if (pos1) {
+            size_t lenBefore = pos1 - responz;
+            size_t lenAfter = strlen(pos1 + strlen("8082"));
+
+            snprintf(responzz, totalLength * sizeof(char) + 10, "%.*s%s%s",
+                (int)lenBefore, responz, settings.wesocket_port, pos1 + strlen("8082"));
+            free(responz);
+            responz = responzz;
+        }
     }
 }
