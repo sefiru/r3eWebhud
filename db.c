@@ -9,7 +9,7 @@
 void init() {
     struct stat buffer;
     int exist = stat("data.db", &buffer);
-    
+
     sqlite3* db;
     char* errMsg = 0;
 
@@ -23,6 +23,7 @@ void init() {
         sqlite3_stmt* stmt;
         char sql[256];
         int exists = 0;
+        int exists1 = 0;
 
         // Query the SQLite schema to check for the existence of the column
         snprintf(sql, sizeof(sql),
@@ -31,19 +32,17 @@ void init() {
         if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
             while (sqlite3_step(stmt) == SQLITE_ROW) {
                 const char* col_name = (const char*)sqlite3_column_text(stmt, 1);
-                if (strcmp(col_name, "track") == 0 && strcmp(col_name, "layout") == 0) {
-                    exists = 1;  // Column exists
-                    break;
-                } else 
                 if (strcmp(col_name, "track") == 0) {
-                    exists = 2;  // Column exists
-                    break;
+                    exists = 1;
+                }
+                if (strcmp(col_name, "layout") == 0) {
+                    exists1 = 1;
                 }
             }
         }
         sqlite3_finalize(stmt);
 
-        if (exists == 1) {
+        if (exists && exists1) {
             char* sql_begin = "BEGIN TRANSACTION;";
             rc = sqlite3_exec(db, sql_begin, 0, 0, &errMsg);
             if (rc != SQLITE_OK) {
@@ -104,8 +103,8 @@ void init() {
             }
 
             fprintf(stdout, "Table altered successfully\n");
-        }
-        if (exists == 2) {
+        } else
+        if (exists) {
             char* sql_rename_column = "ALTER TABLE BestLaps RENAME COLUMN track TO layout;";
             rc = sqlite3_exec(db, sql_rename_column, 0, 0, &errMsg);
             if (rc != SQLITE_OK) {
@@ -140,7 +139,7 @@ void init() {
 
     if (exist == 0)
         return;
-    
+
     // Create a table
     //const char* createTableSQL = "CREATE TABLE WindowsSettings( data TEXT );";
     //rc = sqlite3_exec(db, createTableSQL, 0, 0, &errMsg);
@@ -156,7 +155,7 @@ void init() {
         fprintf(stdout, "Table created successfully\n");
     }
 
-    char* sql1 = "CREATE TABLE BestLaps( track INT, layout INT, car INT, lap FLOAT, fuel FLOAT, PRIMARY KEY(track, layout, car) );";
+    char* sql1 = "CREATE TABLE BestLaps( layout INT, car INT, lap FLOAT, fuel FLOAT, PRIMARY KEY(layout, car) );";
     rc = sqlite3_exec(db, sql1, 0, 0, &errMsg);
 
     if (rc != SQLITE_OK) {
@@ -169,7 +168,7 @@ void init() {
 
 
     // Insert data into the table
-    
+
     //const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (0x0);";
     //const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES ();";
     /*int sequence[] = {122, 3, 238, 3, 0, 0, 71, 0, 171, 2, 143, 3, 0, 0, 79, 0, 201, 4, 8, 2, 0, 0, 66, 0, 197, 3, 168, 2, 1, 0, 0, 0, 250, 4, 118, 0, 1, 0, 0, 0, 167, 5, 113, 0, 1, 0, 0, 0, 249, 4, 187, 0, 1, 0, 0, 0, 248, 5, 221, 3, 1, 0, 0, 0, 203, 4, 201, 3, 0, 0, 34, 0, 53, 1, 136, 0, 0, 0, 96, 0, 72, 2, 63, 2, 1, 0, 0, 0, 68, 0, 64, 1, 0, 0, 47, 0, 0, 0
@@ -185,11 +184,11 @@ void init() {
     sprintf_s(insertSQL, 1000, "INSERT INTO WindowsSettings (data) VALUES (0x%s);", hexString);*/
     /*const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (122, 3, 238, 3, 0, 0, 71, 0, 171, 2, 143, 3, 0, 0, 79, 0, 201, 4, 8, 2, 0, 0, 66, 0, 197, 3, 168, 2, 1, 0, 0, 0, 250, 4, 118, 0, 1, 0, 0, 0, 167, 5, 113, 0, 1, 0, 0, 0, 249, 4, 187, 0, 1, 0, 0, 0, 248, 5, 221, 3, 1, 0, 0, 0, 203, 4, 201, 3, 0, 0, 34, 0, 53, 1, 136, 0, 0, 0, 96, 0, 72, 2, 63, 2, 1, 0, 0, 0, 68, 0, 64, 1, 0, 0, 47, 0, 0, 0);";
     */
-    
-   /* const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (0x7A, 0x03, 0xEE, 0x03, 0x00, 0x00, 0x47, 0x00, 0xAB, 0x02, 0x8F, 0x03, 0x00, 0x00, 0x4F, 0x00, 0xC9, 0x04, 0x08, 0x02, 0x00, 0x00, 0x42, 0x00, 0xC5, 0x03, 0xA8, 0x02, 0x01, 0x00, 0x00, 0x00, 0xFA, 0x04, 0x76, 0x00, 0x01, 0x00, 0x00, 0x00, 0xA7, 0x05, 0x71, 0x00, 0x01, 0x00, 0x00, 0x00, 0xF9, 0x04, 0xBB, 0x00, 0x01, 0x00, 0x00, 0x00, 0xF8, 0x05, 0xDD, 0x03, 0x01, 0x00, 0x00, 0x00, 0xCB, 0x04, 0xC9, 0x03, 0x00, 0x00, 0x22, 0x00, 0x35, 0x01, 0x88, 0x00, 0x00, 0x00, 0x60, 0x00, 0x48, 0x02, 0x3F, 0x02, 0x01, 0x00, 0x00, 0x00, 0x44, 0x00, 0x40, 0x01, 0x00, 0x00, 0x2F, 0x00, 0x00, 0x00);";
-    */
 
-    /*const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (x'7A03EE0300004700AB028F0300004F00C904080200004200C503A802010000FA047600010000A7057100010000F904BB00010000F805DD03010000CB04C903000022003501880000600048023F020100004400400100002F000000');";*/
+    /* const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (0x7A, 0x03, 0xEE, 0x03, 0x00, 0x00, 0x47, 0x00, 0xAB, 0x02, 0x8F, 0x03, 0x00, 0x00, 0x4F, 0x00, 0xC9, 0x04, 0x08, 0x02, 0x00, 0x00, 0x42, 0x00, 0xC5, 0x03, 0xA8, 0x02, 0x01, 0x00, 0x00, 0x00, 0xFA, 0x04, 0x76, 0x00, 0x01, 0x00, 0x00, 0x00, 0xA7, 0x05, 0x71, 0x00, 0x01, 0x00, 0x00, 0x00, 0xF9, 0x04, 0xBB, 0x00, 0x01, 0x00, 0x00, 0x00, 0xF8, 0x05, 0xDD, 0x03, 0x01, 0x00, 0x00, 0x00, 0xCB, 0x04, 0xC9, 0x03, 0x00, 0x00, 0x22, 0x00, 0x35, 0x01, 0x88, 0x00, 0x00, 0x00, 0x60, 0x00, 0x48, 0x02, 0x3F, 0x02, 0x01, 0x00, 0x00, 0x00, 0x44, 0x00, 0x40, 0x01, 0x00, 0x00, 0x2F, 0x00, 0x00, 0x00);";
+     */
+
+     /*const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (x'7A03EE0300004700AB028F0300004F00C904080200004200C503A802010000FA047600010000A7057100010000F904BB00010000F805DD03010000CB04C903000022003501880000600048023F020100004400400100002F000000');";*/
 
     const char* insertSQL = "INSERT INTO WindowsSettings (data) VALUES (0x0);";
     rc = sqlite3_exec(db, insertSQL, 0, 0, &errMsg);
@@ -252,7 +251,7 @@ void writeWindowsSettings(unsigned char* value, size_t size) {
         printf("Database is open\n");
     else
         printf("Database is closed\n");*/
-    //printf("\n\n\n\n\nZAPIS\n\n\n\n\n");
+        //printf("\n\n\n\n\nZAPIS\n\n\n\n\n");
 }
 
 BlobResult readWindowsSettings() {
@@ -267,7 +266,7 @@ BlobResult readWindowsSettings() {
         fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
         return;
     }
-    
+
     char* sql = "SELECT * FROM WindowsSettings";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
     if (rc != SQLITE_OK) {
