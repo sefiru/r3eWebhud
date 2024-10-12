@@ -24,6 +24,184 @@
 
 HANDLE map_handle = INVALID_HANDLE_VALUE;
 r3e_shared* map_buffer = NULL;
+BOOL isFilled = FALSE;
+//r3e_driver_data all_d_[300];
+float yaw_;                       // Global yaw angle (car orientation)
+float actual_angle_;              // Actual movement angle
+float steer_angle_rad_;
+/*
+#include <process.h>  // For _beginthreadex
+#define WINDOW_WIDTH 300
+#define WINDOW_HEIGHT 300
+
+HWND hwnd = NULL;
+
+// Function prototypes
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+void DrawCarVectors(HDC hdc, int centerX, int centerY);
+unsigned __stdcall WindowThread(void* param);
+
+
+// Window thread function
+unsigned __stdcall WindowThread(void* param) {
+    // Register window class
+    WNDCLASS wc = { 0 };
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = GetModuleHandle(NULL);
+    wc.lpszClassName = "CarVectorWindow";
+
+    RegisterClass(&wc);
+
+    // Create the window in the new thread
+    hwnd = CreateWindowEx(
+        0, "CarVectorWindow", "Car Dynamics Visualization",
+        WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+        WINDOW_WIDTH, WINDOW_HEIGHT,
+        NULL, NULL, wc.hInstance, NULL
+    );
+
+    ShowWindow(hwnd, SW_SHOW);
+
+    // Message loop for the window
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    return 0;
+}
+
+// Window procedure
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+    case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+
+        // Fill the entire client area with a white brush to clear old drawings
+        HBRUSH hBrush = (HBRUSH)GetStockObject(WHITE_BRUSH);
+        FillRect(hdc, &rect, hBrush);
+        // Center of the window
+        int centerX = WINDOW_WIDTH / 2;
+        int centerY = WINDOW_HEIGHT / 2;
+
+        // Draw the car vectors based on current car data
+        DrawCarVectors(hdc, centerX, centerY);
+
+        EndPaint(hwnd, &ps);
+    }
+                 break;
+
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        break;
+
+    default:
+        return DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+    return 0;
+}
+
+// Function to draw car vectors on the screen
+void DrawCarVectors(HDC hdc, int centerX, int centerY) {
+    int length = 100;  // Length of each line
+
+    // Calculate each line's endpoint using trigonometry
+    int endX_yaw = centerX + (int)(length * cos(yaw_));   // Global yaw direction
+    int endY_yaw = centerY + (int)(length * sin(yaw_));
+
+    int endX_steering = centerX + (int)(length * cos(steer_angle_rad_));  // Steering wheel angle
+    int endY_steering = centerY + (int)(length * sin(steer_angle_rad_));
+
+    int endX_actual = centerX + (int)(length * cos(actual_angle_));   // Actual movement direction
+    int endY_actual = centerY + (int)(length * sin(actual_angle_));
+
+    // Draw yaw direction (red)
+    HPEN hPenYaw = CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
+    SelectObject(hdc, hPenYaw);
+    MoveToEx(hdc, centerX, centerY, NULL);
+    LineTo(hdc, endX_yaw, endY_yaw);
+    DeleteObject(hPenYaw);
+
+    // Draw steering wheel direction (green)
+    HPEN hPenSteer = CreatePen(PS_SOLID, 2, RGB(0, 255, 0));
+    SelectObject(hdc, hPenSteer);
+    MoveToEx(hdc, centerX, centerY, NULL);
+    LineTo(hdc, endX_steering, endY_steering);
+    DeleteObject(hPenSteer);
+
+    // Draw actual movement direction (blue)
+    HPEN hPenActual = CreatePen(PS_SOLID, 2, RGB(0, 0, 255));
+    SelectObject(hdc, hPenActual);
+    MoveToEx(hdc, centerX, centerY, NULL);
+    LineTo(hdc, endX_actual, endY_actual);
+    DeleteObject(hPenActual);
+
+    // Optional: Label each line with text
+    TextOut(hdc, endX_yaw, endY_yaw, "Yaw", 3);
+    TextOut(hdc, endX_steering, endY_steering, "Steer", 5);
+    TextOut(hdc, endX_actual, endY_actual, "Movement", 8);
+}*/
+
+float16_t float32_to_float16(float value) {
+    uint32_t f_bits = *((uint32_t*)&value);  // Get the raw bits of the float32 value
+    uint16_t sign = (f_bits >> 16) & 0x8000; // Extract the sign (1 bit)
+
+    // Extract and compute the exponent and mantissa for float32
+    uint32_t exponent = (f_bits >> 23) & 0xFF;
+    uint32_t mantissa = f_bits & 0x007FFFFF;
+
+    float16_t f16;
+    f16.raw_bits = 0; // Default to zero
+
+    // Handle zero, denormals, and small values
+    if (exponent == 0) {
+        f16.raw_bits = sign;  // Zero is represented with only the sign bit
+    }
+    // Handle infinities and NaNs
+    else if (exponent == 0xFF) {
+        if (mantissa == 0) {
+            // Infinity
+            f16.raw_bits = sign | 0x7C00;  // Exponent = 11111 (all 1s), Mantissa = 0
+        }
+        else {
+            // NaN
+            f16.raw_bits = sign | 0x7C00 | (mantissa >> 13);  // Preserve some NaN payload bits
+        }
+    }
+    // Normalized numbers
+    else {
+        // Convert exponent from float32 to float16
+        int16_t new_exp = (int16_t)(exponent - 127 + 15);
+
+        // Check for overflow/underflow
+        if (new_exp >= 0x1F) {
+            // Overflow: Represent as infinity
+            f16.raw_bits = sign | 0x7C00;
+        }
+        else if (new_exp <= 0) {
+            // Underflow: Represent as zero or denormalized number
+            if (new_exp < -10) {
+                // Too small to be represented as a denormal, set to zero
+                f16.raw_bits = sign;
+            }
+            else {
+                // Convert to denormalized number (adjust mantissa)
+                mantissa = (mantissa | 0x00800000) >> (1 - new_exp);
+                f16.raw_bits = sign | (mantissa >> 13);
+            }
+        }
+        else {
+            // Normalized float16 value
+            f16.raw_bits = sign | (new_exp << 10) | (mantissa >> 13);
+        }
+    }
+
+    return f16;
+}
 
 float brake[4][1500];
 float brakeA[4][1500];
@@ -192,6 +370,10 @@ void setBb() {
 DWORD WINAPI writeData(LPVOID lpParam) {
     if (currentBb != 0.5f) {
         printf("Set the break bias to 50%% and try again.");
+        return;
+    }
+    if (map_buffer->aid_settings.abs != 0) {
+        printf("Set the abs assist off and try again.");
         return;
     }
     //memset(brake, 0, sizeof(brake));
@@ -477,7 +659,7 @@ int compare(const void* a, const void* b) {
 
 unsigned char chrs[200];
 unsigned char chrsRadar[200];
-struct KeyValue radarPlayers[128];
+struct KeyValue radarPlayers[R3E_NUM_DRIVERS_MAX];
 unsigned long playersIdSum = 0;
 PlayerRatingInfoDb playerRatingInfoDb;
 PlayerRatingInfoSended playerRatingInfoSended;
@@ -491,6 +673,39 @@ r3e_driver_data* all_drivers_data_copy2[R3E_NUM_DRIVERS_MAX];
 
 int main()
 {
+    //_beginthreadex(NULL, 0, WindowThread, NULL, 0, NULL);
+
+    
+
+    // Initialize the critical section
+    //InitializeCriticalSection(&cs);
+
+    //// Step 1: Create a new thread to run the GUI
+    //hThread = (HANDLE)_beginthreadex(NULL, 0, &RunGuiThread, NULL, 0, NULL);
+    //if (hThread == NULL) {
+    //    printf("Failed to create GUI thread\n");
+    //    return -1;
+    //}
+
+    //printf("GUI is running in a separate thread...\n");
+
+    // Step 2: Main function can continue doing other work without being blocked
+    //Sleep(1000);  // Wait for GUI to initialize
+
+    //// Step 3: Add some lines dynamically
+    //AddLine(50, 50, 200, 50, RGB(255, 0, 0));  // Red line
+    //AddLine(200, 50, 200, 200, RGB(0, 255, 0));  // Green line
+    //AddLine(200, 200, 50, 200, RGB(0, 0, 255));  // Blue line
+    //AddLine(50, 200, 50, 50, RGB(255, 255, 0));  // Yellow line
+
+    //// Step 4: Trigger a redraw to show the lines
+    //TriggerRedraw();
+
+    //// Simulate dynamic updates by adding more lines
+    //Sleep(2000);
+    //AddLine(100, 100, 300, 300, RGB(128, 0, 128));  // Purple diagonal line
+    //TriggerRedraw();
+
     HANDLE thread;
     DWORD threadId;
 
@@ -517,6 +732,13 @@ int main()
     lapsAndFuelData.leaderBestLap = 9999;
     lapsAndFuelData.currentBestLap = 9999;
     lapsAndFuelData.previousLap = 9999;
+    playerRatingInfoDb.size++;
+    playerRatingInfoDb.player[0].id = 1085106;
+    playerRatingInfoDb.player[0].name = "s. anti";
+    playerRatingInfoDb.player[0].rating = 1862;
+    playerRatingInfoDb.player[0].reputation = 88;
+    playerRatingInfoSended.ids[0] = 1085106;
+    playerRatingInfoSended.size++;
     //BlobResult res = readWindowsSettings();
     //unsigned char bytes_array[] = { 0x12, 0x34, 0x56, 0x78 };
     //unsigned char bytes_array1[10] = { 'h', 'e', 'l', 'l', 'o','h', 'e', 'l', 'l', 'o' };
@@ -576,7 +798,7 @@ int main()
 
             wprintf_s(L"Memory mapped successfully\n");
 
-            for (int i = 0; i < 128; i++) {
+            for (int i = 0; i < R3E_NUM_DRIVERS_MAX; i++) {
                 all_drivers_data_copy[i] = &map_buffer->all_drivers_data_1[i];
                 all_drivers_data_copy2[i] = all_drivers_data_copy[i];
             }
@@ -668,7 +890,8 @@ int main()
                     errno_t err = fopen_s(&file, newPath, "r");  // Use fopen_s
 
                     if (err != 0 || file == NULL) {
-                        printf("No brake pressure data for the car. ABS graph no available. %s\n", newPath);
+                        if (map_buffer->aid_settings.abs > 0)
+                            printf("No brake pressure data for the car. ABS graph no available. %s\n", newPath);
                         goto skipbb;
                     }
 
@@ -740,7 +963,7 @@ int main()
     return 0;
 }
 void resetSort() {
-    for (int i = 0; i < 128; i++) {
+    for (int i = 0; i < R3E_NUM_DRIVERS_MAX; i++) {
         all_drivers_data_copy[i] = all_drivers_data_copy2[i];
     }
 }
@@ -779,13 +1002,14 @@ void initSettings() {
         fscanf_s(file, "wheels = %d\n", &settings.wheels);
         fscanf_s(file, "absgrip graph = %d\n", &settings.absgrip_graph);
         fscanf_s(file, "input graph = %d\n", &settings.input_graph);
+        fscanf_s(file, "slip graph = %d\n", &settings.slip_graph);
         fscanf_s(file, "input percents = %d\n", &settings.input_percents);
         fscanf_s(file, "standings = %d\n", &settings.standings);
         fscanf_s(file, "starting lights = %d\n", &settings.startingLights);
         fscanf_s(file, "dev = %d\n", &settings.dev);
         fclose(file);
     } else {
-        settings = (Settings){ "8081", "8082", 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0 };
+        settings = (Settings){ "8081", "8082", 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0 };
         FILE* file;
         errno_t err = fopen_s(&file, "settings.txt", "w");
         if (err == 0) {
@@ -801,6 +1025,7 @@ void initSettings() {
             fprintf(file, "wheels = %d\n", settings.wheels);
             fprintf(file, "absgrip graph = %d\n", settings.absgrip_graph);
             fprintf(file, "input graph = %d\n", settings.input_graph);
+            fprintf(file, "slip graph = %d\n", settings.slip_graph);
             fprintf(file, "input percents = %d\n", settings.input_percents);
             fprintf(file, "standings = %d\n", settings.standings);
             fprintf(file, "starting lights = %d\n", settings.startingLights);
@@ -849,17 +1074,53 @@ void doDeltaRadar() {
     /* printf("(%f,%f)", map_buffer->all_drivers_data_1[1].driver_info.car_width, map_buffer->all_drivers_data_1[1].driver_info.car_length);
         printf("(%f,%f)\n", map_buffer->all_drivers_data_1[0].driver_info.car_width, map_buffer->all_drivers_data_1[0].driver_info.car_length);*/
         //printf("%d ",map_buffer->num_cars);
-    memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].position.x, sizeof(r3e_float32));
-    chrs[1] += 4;
-    memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].position.z, sizeof(r3e_float32));
-    chrs[1] += 4;
-    memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].orientation.y, sizeof(r3e_float32));
-    chrs[1] += 4;
-    memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].driver_info.car_width, sizeof(r3e_float32));
-    chrs[1] += 4;
-    memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].driver_info.car_length, sizeof(r3e_float32));
-    chrs[1] += 4;
-    for (int i = 0; i < 128; ++i) {
+    if (map_buffer->position <= map_buffer->num_cars) {
+        memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].position.x, sizeof(r3e_float32));
+        chrs[1] += 4;
+        memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].position.z, sizeof(r3e_float32));
+        chrs[1] += 4;
+        memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].orientation.y, sizeof(r3e_float32));
+        chrs[1] += 4;
+        memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].driver_info.car_width, sizeof(r3e_float32));
+        chrs[1] += 4;
+        memcpy(&chrs[2 + chrs[1]], &map_buffer->all_drivers_data_1[map_buffer->position - 1].driver_info.car_length, sizeof(r3e_float32));
+        chrs[1] += 4;
+    }
+    else {
+        r3e_float32 locx = map_buffer->player.position.x;
+        r3e_float32 locz = map_buffer->player.position.z;
+        r3e_float32 locy = map_buffer->player.orientation.y;
+        r3e_float32 locw = map_buffer->vehicle_info.car_width;
+        r3e_float32 locl = map_buffer->vehicle_info.car_length;
+        memcpy(&chrs[2 + chrs[1]], &locx, sizeof(r3e_float32));
+        chrs[1] += 4;
+        memcpy(&chrs[2 + chrs[1]], &locz, sizeof(r3e_float32));
+        chrs[1] += 4;
+        memcpy(&chrs[2 + chrs[1]], &locy, sizeof(r3e_float32));
+        chrs[1] += 4;
+        memcpy(&chrs[2 + chrs[1]], &locw, sizeof(r3e_float32));
+        chrs[1] += 4;
+        memcpy(&chrs[2 + chrs[1]], &locl, sizeof(r3e_float32));
+        chrs[1] += 4;
+    }
+    //r3e_driver_data asd = map_buffer->all_drivers_data_1[map_buffer->position - 1];
+    //printf("%d ", map_buffer->position);
+    /*for (size_t i = 0; i < 134; i++)
+    {
+        //printf("%d ", map_buffer->all_drivers_data_1[i].driver_info.user_id);
+        if (all_d_[i] != NULL)
+            printf("%d ", all_d_[i]->driver_info.user_id);
+        /*if (map_buffer->all_drivers_data_1[i].driver_info.user_id == 1085106) {
+            printf("%d ", i);
+        }*/
+    //}
+    //printf("wl(%f %f)\n", map_buffer->all_drivers_data_1[map_buffer->position - 1].driver_info.car_width, map_buffer->all_drivers_data_1[map_buffer->position - 1].driver_info.car_length);
+    //printf("x(%f %f %f) ", all_d_[12].position.x, map_buffer->player.position.x, map_buffer->all_drivers_data_1[map_buffer->position - 1].position.x - map_buffer->player.position.x);
+    /*printf("x(%f %f %f) ", map_buffer->all_drivers_data_1[map_buffer->position - 1].position.x, map_buffer->player.position.x, map_buffer->all_drivers_data_1[map_buffer->position - 1].position.x - map_buffer->player.position.x);
+    printf("z(%f %f %f) ", map_buffer->all_drivers_data_1[map_buffer->position - 1].position.z, map_buffer->player.position.z, map_buffer->all_drivers_data_1[map_buffer->position - 1].position.z- map_buffer->player.position.z);
+    printf("y(%f %f %f)\n", map_buffer->all_drivers_data_1[map_buffer->position - 1].orientation.y, map_buffer->player.orientation.y, map_buffer->all_drivers_data_1[map_buffer->position - 1].orientation.y- map_buffer->player.orientation.y);
+    */
+    for (int i = 0; i < R3E_NUM_DRIVERS_MAX; ++i) {
         radarPlayers[i].key = i;
         radarPlayers[i].value = INT_MAX;
         radarPlayers[i].data;
@@ -978,8 +1239,49 @@ void doDeltaRadar() {
 }
 
 void doPlayersInfo() {
-    if (currentState != map_buffer->session_type) {
-        unsigned long playersIdSumTemp = 0;
+    if (isClientNew) {
+        isClientNew = FALSE;
+        for (size_t j = 0; j < 1000; j++) {
+            if (playerRatingInfoDb.player[j].id == 0)
+                break;
+
+            //InterlockedIncrement(playerRatingInfoSended.size);
+
+            //int length = snprintf(NULL, 0, "%lu,%s,%d,%d", temp->id, temp[playerRatingInfoDb.size].name, temp[playerRatingInfoDb.size].rating, temp[playerRatingInfoDb.size].reputation);
+            int length = snprintf(NULL, 0, "%lu,%s,%d,%d", playerRatingInfoDb.player[j].id, playerRatingInfoDb.player[j].name, playerRatingInfoDb.player[j].rating, playerRatingInfoDb.player[j].reputation);
+
+            // Allocate memory for the string
+            char* str = malloc(length + 4);
+
+            sprintf_s(&str[3], length + 1, "%lu,%s,%d,%d", playerRatingInfoDb.player[j].id, playerRatingInfoDb.player[j].name, playerRatingInfoDb.player[j].rating, playerRatingInfoDb.player[j].reputation);
+
+            //printf("%s\n", str);
+
+            str[0] = 130;
+            str[1] = length + 2;
+            str[2] = 5;
+            sendMessage(str, length + 4);
+            free(str);
+        }
+    }
+    /*if (!isFilled) {
+        for (size_t i = 0; i < 300; i++) {
+            all_d_[i] = map_buffer->all_drivers_data_1[i];
+        }
+        isFilled = TRUE;
+    }*/
+    /*printf("%d ", map_buffer->all_drivers_offset);
+    printf("%d ", map_buffer->driver_data_size);
+    printf("%d\n", map_buffer->num_cars);*/
+    if (map_buffer->session_type == -1)
+        return;
+    unsigned long playersIdSumTemp = 0;
+    for (size_t i = 0; i < map_buffer->num_cars; i++) {
+        //map_buffer->all_drivers_data_1[i];
+        //map_buffer->all_drivers_data_1[i].driver_info.user_id;
+        playersIdSumTemp += map_buffer->all_drivers_data_1[i].driver_info.user_id;
+    }
+    if (currentState != map_buffer->session_type || playersIdSum != playersIdSumTemp) {
         if (map_buffer->session_type == -1 || currentState == -1) {
             /*for (int i = 0; i < sizeof(playerRatingInfoCurrent) / sizeof(playerRatingInfoCurrent[0]); i++) {
                 //free(playerRatingInfoCurrent[i].name);
@@ -996,11 +1298,6 @@ void doPlayersInfo() {
             /*free(playerRatingInfo[i].name);
             memset(playerRatingInfo, 0, sizeof(playerRatingInfo));*/
 
-        }
-        for (size_t i = 0; i < map_buffer->num_cars; i++) {
-            //map_buffer->all_drivers_data_1[i];
-            //map_buffer->all_drivers_data_1[i].driver_info.user_id;
-            playersIdSumTemp += map_buffer->all_drivers_data_1[i].driver_info.user_id;
         }
         if (playersIdSum != playersIdSumTemp) {
         dopls:
@@ -1024,6 +1321,37 @@ void doPlayersInfo() {
                     }
 
                     if (temp != NULL) {
+                        if (temp->name == NULL) {
+                            temp->name = malloc(64);
+                            char* input = map_buffer->all_drivers_data_1[i].driver_info.name;
+                            int k = 0, j = 0;
+
+                            // Step 1: Get the first letter of the first part and add ". " to result
+                            temp->name[j++] = input[0];  // Add the first character
+                            temp->name[j++] = '.';       // Add the period
+                            temp->name[j++] = ' ';       // Add a space
+
+                            // Step 2: Find the first space in the input
+                            while (input[k] != ' ' && input[k] != '\0') {
+                                k++;
+                            }
+
+                            // Step 3: Move `i` to point to the start of the second part
+                            if (input[k] == ' ') {
+                                k++;  // Move past the space character
+                            }
+
+                            // Step 4: Add up to 15 characters of the second part to `result`
+                            int count = 0;
+                            while (input[k] != '\0' && count < 15) {
+                                temp->name[j++] = input[k++];
+                                count++;
+                            }
+
+                            // Step 5: Null-terminate the result string
+                            temp->name[j] = '\0';
+                            //printf("%s\n", temp->name);
+                        }
 
                         playerRatingInfoSended.ids[playerRatingInfoSended.size] = map_buffer->all_drivers_data_1[i].driver_info.user_id;
                         //InterlockedIncrement(playerRatingInfoSended.size);
@@ -1049,6 +1377,7 @@ void doPlayersInfo() {
                         str[2] = 5;
                         sendMessage(str, length + 4);
                         free(str);
+                        isClientNew = FALSE;
                     }
                     else {
                         //printf("\n\n%s %d\n\n", map_buffer->all_drivers_data_1[i].driver_info.name, map_buffer->all_drivers_data_1[i].driver_info.user_id);
@@ -1061,6 +1390,7 @@ void doPlayersInfo() {
                         /*for (int i = 0; i < sizeof(unsigned long); ++i) {
                             byte_array[i + 3] = (map_buffer->all_drivers_data_1[i].driver_info.user_id >> (i * 8)) & 0xFF;
                         }*/
+                        //printf("%d\n", map_buffer->all_drivers_data_1[i].driver_info.user_id);
                         memcpy(&byte_array[2 + 1], &map_buffer->all_drivers_data_1[i].driver_info.user_id, sizeof(unsigned long));
                         //printf("sended, %d\n", sizeof(unsigned long) + 1);
                         //printf("sended, %d", sizeof(byte_array));
@@ -1076,6 +1406,41 @@ void doPlayersInfo() {
         }
         currentState = map_buffer->session_type;
     }
+    //if (isClientNew) {
+    //    isClientNew = FALSE;
+    //    for (size_t i = 0; i < map_buffer->num_cars; i++) {
+    //        if (map_buffer->all_drivers_data_1[i].driver_info.user_id == -1)
+    //            continue;
+    //        PlayerRatingInfo* temp = NULL;
+    //        for (size_t j = 0; j < 1000; j++) {
+    //            if (playerRatingInfoDb.player[j].id == 0)
+    //                break;
+    //            if (playerRatingInfoDb.player[j].id == map_buffer->all_drivers_data_1[i].driver_info.user_id)
+    //                temp = &playerRatingInfoDb.player[j];
+    //        }
+    //        if (temp != NULL) {
+
+    //            //InterlockedIncrement(playerRatingInfoSended.size);
+
+    //            //int length = snprintf(NULL, 0, "%lu,%s,%d,%d", temp->id, temp[playerRatingInfoDb.size].name, temp[playerRatingInfoDb.size].rating, temp[playerRatingInfoDb.size].reputation);
+    //            int length = snprintf(NULL, 0, "%lu,%s,%d,%d", temp->id, temp->name, temp->rating, temp->reputation);
+
+    //            // Allocate memory for the string
+    //            char* str = malloc(length + 4);
+
+    //            sprintf_s(&str[3], length + 1, "%lu,%s,%d,%d", temp->id, temp->name, temp->rating, temp->reputation);
+
+    //            //printf("%s\n", str);
+
+    //            playersIdSum = playersIdSumTemp;
+    //            str[0] = 130;
+    //            str[1] = length + 2;
+    //            str[2] = 5;
+    //            sendMessage(str, length + 4);
+    //            free(str);
+    //        }
+    //    }
+    //}
 }
 
 void doRelativeFuel() {
@@ -1126,6 +1491,7 @@ void doRelativeFuel() {
         int counting = map_buffer->num_cars - 1;
         int num = 0;
         unsigned char chr = 0;
+        unsigned char chrp = 100;
         int notFilled = 0;
         int skiped = 0;
         size_t to = 6;
@@ -1149,24 +1515,28 @@ void doRelativeFuel() {
                 memcpy(&chrs[2 + chrs[1]], &currentCarNum, sizeof(unsigned char));
                 chrs[1] += 1;
 
-                if (map_buffer->completed_laps != all_drivers_data_copy[currentCar]->completed_laps) {
-                    float toClient = (all_drivers_data_copy[currentCar]->completed_laps - map_buffer->completed_laps) * 1000;
-                    memcpy(&chrs[2 + chrs[1]], &toClient, sizeof(r3e_float32));
-                    chrs[1] += 4;
-                    continue;
-                }
                 float timeza = ((map_buffer->lap_distance / map_buffer->layout_length * 100) / 100 * lapsAndFuelData.allBestLap) - (all_drivers_data_copy[currentCar]->lap_distance / map_buffer->layout_length * 100) / 100 * lapsAndFuelData.allBestLap;
-
-                memcpy(&chrs[2 + chrs[1]], &timeza, sizeof(r3e_float32));
-                chrs[1] += 4;
+                
+                float16_t half = float32_to_float16(timeza);
+                memcpy(&chrs[2 + chrs[1]], &half, sizeof(float16_t));
+                chrs[1] += 2;
+                memcpy(&chrs[2 + chrs[1]], (char*)&all_drivers_data_copy[currentCar]->penaltyType, 1);
+                chrs[1] += 1;
+                unsigned char toClient = (all_drivers_data_copy[currentCar]->completed_laps - map_buffer->completed_laps);
+                memcpy(&chrs[2 + chrs[1]], &toClient, 1);
+                chrs[1] += 1;
             }
             else {
                 memcpy(&chrs[2 + chrs[1]], &num, sizeof(r3e_int32));
                 chrs[1] += 4;
                 memcpy(&chrs[2 + chrs[1]], &chr, sizeof(unsigned char));
                 chrs[1] += 1;
-                memcpy(&chrs[2 + chrs[1]], &num, sizeof(r3e_float32));
-                chrs[1] += 4;
+                memcpy(&chrs[2 + chrs[1]], &num, sizeof(float16_t));
+                chrs[1] += 2;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
             }
 
 
@@ -1177,8 +1547,12 @@ void doRelativeFuel() {
                 chrs[1] += 4;
                 memcpy(&chrs[2 + chrs[1]], &chr, sizeof(unsigned char));
                 chrs[1] += 1;
-                memcpy(&chrs[2 + chrs[1]], &num, sizeof(r3e_float32));
-                chrs[1] += 4;
+                memcpy(&chrs[2 + chrs[1]], &num, sizeof(float16_t));
+                chrs[1] += 2;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
             }
             notFilled = 0;
         }
@@ -1189,8 +1563,12 @@ void doRelativeFuel() {
                 chrs[1] += 4;
                 memcpy(&chrs[2 + chrs[1]], &chr, sizeof(unsigned char));
                 chrs[1] += 1;
-                memcpy(&chrs[2 + chrs[1]], &num, sizeof(r3e_float32));
-                chrs[1] += 4;
+                memcpy(&chrs[2 + chrs[1]], &num, sizeof(float16_t));
+                chrs[1] += 2;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
             }
             skiped = 0;
         }
@@ -1213,24 +1591,30 @@ void doRelativeFuel() {
                 chrs[1] += 4;
                 memcpy(&chrs[2 + chrs[1]], &currentCarNum, sizeof(unsigned char));
                 chrs[1] += 1;
-
-                if (map_buffer->completed_laps != all_drivers_data_copy[currentCar]->completed_laps) {
-                    float toClient = (all_drivers_data_copy[currentCar]->completed_laps - map_buffer->completed_laps) * 1000;
-                    memcpy(&chrs[2 + chrs[1]], &toClient, sizeof(r3e_float32));
-                    chrs[1] += 4;
-                    continue;
-                }
+                
                 float timeza = ((map_buffer->lap_distance / map_buffer->layout_length * 100) / 100 * lapsAndFuelData.allBestLap) - (all_drivers_data_copy[currentCar]->lap_distance / map_buffer->layout_length * 100) / 100 * lapsAndFuelData.allBestLap;
-                memcpy(&chrs[2 + chrs[1]], &timeza, sizeof(r3e_float32));
-                chrs[1] += 4;
+                
+                float16_t half = float32_to_float16(timeza);
+                memcpy(&chrs[2 + chrs[1]], &half, sizeof(float16_t));
+                chrs[1] += 2;
+                memcpy(&chrs[2 + chrs[1]], (char*)&all_drivers_data_copy[currentCar]->penaltyType, 1);
+                chrs[1] += 1;
+                unsigned char toClient = (all_drivers_data_copy[currentCar]->completed_laps - map_buffer->completed_laps);
+                //printf("%d", toClient);
+                memcpy(&chrs[2 + chrs[1]], &toClient, 1);
+                chrs[1] += 1;
             }
             else {
                 memcpy(&chrs[2 + chrs[1]], &num, sizeof(r3e_int32));
                 chrs[1] += 4;
                 memcpy(&chrs[2 + chrs[1]], &chr, sizeof(unsigned char));
                 chrs[1] += 1;
-                memcpy(&chrs[2 + chrs[1]], &num, sizeof(r3e_float32));
-                chrs[1] += 4;
+                memcpy(&chrs[2 + chrs[1]], &num, sizeof(float16_t));
+                chrs[1] += 2;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
             }
 
         }
@@ -1240,8 +1624,12 @@ void doRelativeFuel() {
                 chrs[1] += 4;
                 memcpy(&chrs[2 + chrs[1]], &chr, sizeof(unsigned char));
                 chrs[1] += 1;
-                memcpy(&chrs[2 + chrs[1]], &num, sizeof(r3e_float32));
-                chrs[1] += 4;
+                memcpy(&chrs[2 + chrs[1]], &num, sizeof(float16_t));
+                chrs[1] += 2;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
             }
             notFilled = 0;
         }
@@ -1252,8 +1640,12 @@ void doRelativeFuel() {
                 chrs[1] += 4;
                 memcpy(&chrs[2 + chrs[1]], &chr, sizeof(unsigned char));
                 chrs[1] += 1;
-                memcpy(&chrs[2 + chrs[1]], &num, sizeof(r3e_float32));
-                chrs[1] += 4;
+                memcpy(&chrs[2 + chrs[1]], &num, sizeof(float16_t));
+                chrs[1] += 2;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
+                memcpy(&chrs[2 + chrs[1]], &chrp, sizeof(unsigned char));
+                chrs[1] += 1;
             }
             skiped = 0;
         }
@@ -1500,7 +1892,118 @@ void doWheels() {
 }
 
 void doInputs() {
+    //printf("map_buffer->player.orientation.x: %f, ", map_buffer->player.orientation.x);
+    //printf("map_buffer->all_drivers_data_1[player].orientation.x: %f, ", map_buffer->all_drivers_data_1[map_buffer->position - 1].orientation.x);
+    //printf("diff: %f\n", map_buffer->player.orientation.x - map_buffer->all_drivers_data_1[map_buffer->position - 1].orientation.x);
+    //printf("map_buffer->player.orientation.y: %f, ", map_buffer->player.orientation.y);
+    //printf("map_buffer->all_drivers_data_1[player].orientation.y: %f", map_buffer->all_drivers_data_1[map_buffer->position - 1].orientation.y);
+    //printf("diff: %f\n", map_buffer->player.orientation.y - map_buffer->all_drivers_data_1[map_buffer->position - 1].orientation.y);//
+    //printf("map_buffer->player.orientation.z: %f, ", map_buffer->player.orientation.z);
+    //printf("map_buffer->all_drivers_data_1[player].orientation.z: %f", map_buffer->all_drivers_data_1[map_buffer->position - 1].orientation.z);
+    //printf("diff: %f\n", map_buffer->player.orientation.z - map_buffer->all_drivers_data_1[map_buffer->position - 1].orientation.z);
 
+    //printf("map_buffer->player.position.x: %f, ", map_buffer->player.position.x);
+    //printf("map_buffer->all_drivers_data_1[player].position.x: %f, ", map_buffer->all_drivers_data_1[map_buffer->position - 1].position.x);
+    //printf("diff: %f\n", map_buffer->player.position.x - map_buffer->all_drivers_data_1[map_buffer->position - 1].position.x);
+    //printf("map_buffer->player.position.y: %f, ", map_buffer->player.position.y);
+    //printf("map_buffer->all_drivers_data_1[player].position.y: %f, ", map_buffer->all_drivers_data_1[map_buffer->position - 1].position.y);
+    //printf("diff: %f\n", map_buffer->player.position.y - map_buffer->all_drivers_data_1[map_buffer->position - 1].position.y);//
+    //printf("map_buffer->player.position.z: %f, ", map_buffer->player.position.z);
+    //printf("map_buffer->all_drivers_data_1[player].position.z: %f, ", map_buffer->all_drivers_data_1[map_buffer->position - 1].position.z);
+    //printf("diff: %f\n", map_buffer->player.position.z - map_buffer->all_drivers_data_1[map_buffer->position - 1].position.z);
+    float yaw = map_buffer->car_orientation.yaw;
+    float forward_x = cos(yaw);
+    float forward_z = sin(yaw);
+    float actual_velocity_x = -map_buffer->player.local_velocity.x;
+    float actual_velocity_z = -map_buffer->player.local_velocity.z;
+    // Get the angle of the actual movement vector
+    float actual_angle = atan2(actual_velocity_x, actual_velocity_z);
+    float forward_angle = atan2(forward_x, forward_z);
+
+    float angle_difference = actual_angle - forward_angle;
+
+    if (angle_difference > M_PI) {
+        angle_difference -= 2 * M_PI;
+    }
+    else if (angle_difference < -M_PI) {
+        angle_difference += 2 * M_PI;
+    }
+
+    float d_fl = 1.5, d_fr = 1.5, d_rl = 1.5, d_rr = 1.5;
+    float yaw_rate = map_buffer->player.angular_velocity.y;
+
+
+    float v_lateral_fl = actual_velocity_x + yaw_rate * d_fl;
+    float v_lateral_fr = actual_velocity_x + yaw_rate * d_fr;
+    float v_lateral_rl = actual_velocity_x + yaw_rate * d_rl;
+    float v_lateral_rr = actual_velocity_x + yaw_rate * d_rr;
+    float steer_angle_deg = map_buffer->steer_lock_degrees * map_buffer->steer_input_raw;
+    float steer_angle_rad = steer_angle_deg * (M_PI / 180.0);
+
+    float slip_angle_fl = atan2(v_lateral_fl, actual_velocity_z) - steer_angle_rad;
+    float slip_angle_fr = atan2(v_lateral_fr, actual_velocity_z) - steer_angle_rad;
+    float slip_angle_rl = atan2(v_lateral_rl, actual_velocity_z);
+    float slip_angle_rr = atan2(v_lateral_rr, actual_velocity_z);
+
+    slip_angle_fl -= actual_angle;
+    slip_angle_fr -= actual_angle;
+    slip_angle_rl -= actual_angle;
+    slip_angle_rr -= actual_angle;
+
+    float threshold = 0.02f;
+    
+    char ch = 0;
+    if (fabs(slip_angle_rl) > threshold || fabs(slip_angle_rr) > threshold) {
+        //printf("Oversteering\n");
+        ch = 1;
+    }
+    else if (fabs(slip_angle_fl) > threshold || fabs(slip_angle_fr) > threshold) {
+        //printf("Understeering\n");
+        ch = 2;
+    }
+    else {
+        //printf("Neutral Steer\n");
+        ch = 3;
+    }
+    chrs[1] = 1;
+    chrs[2] = 101;
+    float max_slip_angle = 1;
+    float min_slip_angle = 0;
+    float epsilon = 1e-6;
+    float range = max_slip_angle - min_slip_angle;
+    if (range < epsilon) range = epsilon;
+    slip_angle_fl = fabs(slip_angle_fl);
+    slip_angle_fr = fabs(slip_angle_fr);
+    slip_angle_rl = fabs(slip_angle_rl);
+    slip_angle_rr = fabs(slip_angle_rr);
+    float slip_angle_fl_normalized = (slip_angle_fl * 10 - min_slip_angle) / range;
+    float slip_angle_fr_normalized = (slip_angle_fr * 10 - min_slip_angle) / range;
+    float slip_angle_rl_normalized = (slip_angle_rl * 10 - min_slip_angle) / range;
+    float slip_angle_rr_normalized = (slip_angle_rr * 10 - min_slip_angle) / range;
+    slip_angle_fl_normalized = fmax(0.0f, fmin(1.0f, slip_angle_fl_normalized));
+    slip_angle_fr_normalized = fmax(0.0f, fmin(1.0f, slip_angle_fr_normalized));
+    slip_angle_rl_normalized = fmax(0.0f, fmin(1.0f, slip_angle_rl_normalized));
+    slip_angle_rr_normalized = fmax(0.0f, fmin(1.0f, slip_angle_rr_normalized));
+
+    yaw_ = -1.5708;
+    actual_angle_ = actual_angle - 1.5708;
+    steer_angle_rad_ = steer_angle_rad - 1.5708;
+
+    /*if (hwnd) {
+        InvalidateRect(hwnd, NULL, TRUE);
+    }*/
+    memcpy(&chrs[2 + chrs[1]], &slip_angle_fl_normalized, sizeof(r3e_float32));
+    chrs[1] += 4;
+    memcpy(&chrs[2 + chrs[1]], &slip_angle_rl_normalized, sizeof(r3e_float32));
+    chrs[1] += 4;
+    memcpy(&chrs[2 + chrs[1]], &actual_angle_, sizeof(r3e_float32));
+    chrs[1] += 4;
+    memcpy(&chrs[2 + chrs[1]], &steer_angle_rad_, sizeof(r3e_float32));
+    chrs[1] += 4;
+    memcpy(&chrs[2 + chrs[1]], &ch, sizeof(char));
+    chrs[1] += 1;
+
+    sendMessage(chrs, chrs[1] + 2);
 
     chrs[1] = 1;
     chrs[2] = 10;
@@ -1615,6 +2118,8 @@ void doStartLightsAndBestLapSaves() {
     //if (isClientConnected && map_buffer->session_type == 100) {
         //if (map_buffer->completed_laps > 1) {
         //printf("%f\n", map_buffer->lap_time_previous_self);
+    if (lapsAndFuelData.allBestLap == -1)
+        lapsAndFuelData.allBestLap = 99999;
     if (lastSavedLap != map_buffer->completed_laps && map_buffer->lap_time_previous_self != -1) {
 
         /*printf("\n---------");
@@ -1666,17 +2171,18 @@ void doStartLightsAndBestLapSaves() {
             memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.leaderBestLap, sizeof(float));
             chrs[1] += 4;*/////////////////////
             //if (map_buffer->completed_laps > 1 && (lapsAndFuelData.allBestLap > lapsAndFuelData.currentBestLap || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap)) {
-            if (((map_buffer->session_type != 1 && map_buffer->completed_laps > 1) || (map_buffer->session_type == 1 && map_buffer->completed_laps > 0)) && ((map_buffer->lap_time_best_self != -1 && lapsAndFuelData.allBestLap > map_buffer->lap_time_best_self) || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap)) {
-                if (map_buffer->lap_time_best_self != -1 && lapsAndFuelData.allBestLap > map_buffer->lap_time_best_self) {
-                    lapsAndFuelData.allBestLap = map_buffer->lap_time_best_self;
+            if (((map_buffer->session_type != 1 && map_buffer->completed_laps > 1) || (map_buffer->session_type == 1 && map_buffer->completed_laps > 0)) && ((lapsAndFuelData.currentBestLap != -1 && lapsAndFuelData.allBestLap > lapsAndFuelData.currentBestLap) || lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap)) {
+                if (map_buffer->lap_time_best_self != -1 && lapsAndFuelData.currentBestLap != -1 && lapsAndFuelData.allBestLap > lapsAndFuelData.currentBestLap) {
+                    lapsAndFuelData.allBestLap = map_buffer->lap_time_best_self;//lapsAndFuelData.currentBestLap;
+                    lapsAndFuelData.allBestFuel = map_buffer->fuel_per_lap;
                     //printf("\currentBestLap %f", lapsAndFuelData.currentBestLap);
                 }
                 /*/////////////////////*memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.allBestLap, sizeof(float));
                 chrs[1] += 4;*/////////////////////
-                if (lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap && map_buffer->fuel_per_lap != 0) {
+                /*if (lapsAndFuelData.allBestFuel > map_buffer->fuel_per_lap && map_buffer->fuel_per_lap != 0) {
                     lapsAndFuelData.allBestFuel = map_buffer->fuel_per_lap;
                     //printf("\currentBestLap %f", lapsAndFuelData.allBestFuel);
-                }
+                }*/
                 /*/////////////////////*memcpy(&chrs[2 + chrs[1]], &lapsAndFuelData.allBestFuel, sizeof(float));
                 chrs[1] += 4;*/////////////////////
 

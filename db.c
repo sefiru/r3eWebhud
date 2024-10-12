@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <stdint.h>
-#pragma optimize("", off)
+//#pragma optimize("", off)
 void init() {
     struct stat buffer;
     int exist = stat("data.db", &buffer);
@@ -254,7 +254,7 @@ void writeWindowsSettings(unsigned char* value, size_t size) {
         //printf("\n\n\n\n\nZAPIS\n\n\n\n\n");
 }
 
-BlobResult readWindowsSettings() {
+void readWindowsSettings(BlobResult* result) {
 
     sqlite3* db;
     char* errMsg = 0;
@@ -273,7 +273,7 @@ BlobResult readWindowsSettings() {
         printf("Failed to prepare statement: %s\n", sqlite3_errmsg(db));
         return;
     }
-    BlobResult result = { 0, (unsigned char*)malloc(200 * sizeof(unsigned char)) };
+    //BlobResult result = { 0, (unsigned char*)malloc(200 * sizeof(unsigned char)) };
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         //int colCount = sqlite3_column_count(stmt);
         /*for (int i = 0; i < colCount; i++) {
@@ -296,21 +296,15 @@ BlobResult readWindowsSettings() {
         }*/
         const unsigned char* src = sqlite3_column_blob(stmt, 0);
 
-        //unsigned char dest = malloc(size * sizeof(unsigned char));
-        //memcpy(dest, src, size);
-        /*unsigned char dest[200];
-        dest = *src;*/
-        //for (int i = 0; i < size; i++) {
-        //    printf("%d: %d\n", i, src[i]);  // Print as integer
-        //}
-        unsigned char dest[200];
-        memcpy(dest, src, size);
-        result.data = &dest;
+        for (size_t i = 0; i < size; i++) {
+            result->data[i] = src[i];
+        }
+        //result->data = sqlite3_column_blob(stmt, 0);
         //memcpy(result.data, src, size);
         //const unsigned char* new_var = result.data;
-        result.size = size;
+        result->size = size;
         //for (int i = 0; i < size; i++) {
-        //    printf("%d: %d\n", i, result.data[i]);  // Print as integer
+        //    printf("%d: %d\n", i, result->data[i]);  // Print as integer
         //}
         //const unsigned char* test = result.data;
         //printf("lololo\n");
@@ -353,7 +347,10 @@ BlobResult readWindowsSettings() {
         printf("Database is open\n");
     else
         printf("Database is closed\n");*/
-    return result;
+    //for (int i = 0; i < 112; i++) {
+    //    printf("%d: %d\n", i, result.data[i]);  // Print as integer
+    //}
+    //return &result;
 }
 
 

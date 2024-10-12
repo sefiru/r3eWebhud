@@ -7,6 +7,10 @@
 #define WEBHUDGIT_H
 
 typedef struct {
+	uint16_t raw_bits;  // Stores the raw bits of a float16 number
+} float16_t;
+
+typedef struct {
 	char http_port[10];
 	char wesocket_port[10];
 	int last_lap;
@@ -19,6 +23,7 @@ typedef struct {
 	int wheels;
 	int absgrip_graph;
 	int input_graph;
+	int slip_graph;
 	int input_percents;
 	int standings;
 	int startingLights;

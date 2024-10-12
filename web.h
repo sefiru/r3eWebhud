@@ -4,6 +4,7 @@
 #define WEB_H
 
 extern BOOL isClientConnected;
+extern BOOL isClientNew;
 
 
 void startServers();

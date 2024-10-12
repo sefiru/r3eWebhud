@@ -8,7 +8,7 @@ typedef struct {
 } BlobResult;
 void init();
 void writeWindowsSettings(unsigned char* value, size_t size);
-BlobResult readWindowsSettings();
+void readWindowsSettings(BlobResult* result);
 void writeBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t layout, int32_t car);
 void readBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t layout, int32_t car);
 //void writeBestLapFuel(LapsAndFuel* lapsAndFuel, int32_t track, int32_t car);
