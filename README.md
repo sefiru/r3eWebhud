@@ -34,3 +34,5 @@ After running the .exe file, a .db file will be created in the same folder. This
 If you have any questions, you can ask on a "apps” channel on the official R3E Discord channel, on the [Forum](https://forum.kw-studios.com/index.php?threads/another-custom-webhud.19310/), or by messaging me directly on Discord at “sefianti”.
 
 *To compile add sqlite amalgamation sources.*
+
+![Alt text](https://sun9-78.userapi.com/impg/rbzOVdFpqCE6JOTH9gun6ZwRADOhLVelQr-Bug/5VK95oAviJQ.jpg?size=1920x1080&quality=95&sign=2f77848d3cadf4f9fe6b76050acefc4b&type=album "screenshot")
